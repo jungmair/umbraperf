@@ -18,12 +18,23 @@ interface Props {
     setChunksNumber: (newChunksNumber: number) => void;
 }
 
-class Dummy extends React.Component<Props> {
+export class Dummy extends React.Component<Props> {
 
     constructor(props: Props) {
         super(props);
         this.receiveFileOnDrop = this.receiveFileOnDrop.bind(this);
         this.getResultFromMichael = this.getResultFromMichael.bind(this);
+    }
+
+    public getClass(){
+        return this;
+    }
+
+    public updateResult() {
+        profiler_core.printSomething("DAS HIER");
+        const result: number = profiler_core.getState();
+        console.log(" hsefiahöfsiehfieashföa   " +  result.toString());
+        return 32;
     }
 
     public async passToMichael(files: Array<File>) {
@@ -195,6 +206,6 @@ const mapDispatchToProps = (dispatch: model.Dispatch) => ({
 export default connect(mapStateToProps, mapDispatchToProps)(Dummy);
 
 export function update(){
-    console.log("hi")
+    console.log("hi");
     return 32;
 }

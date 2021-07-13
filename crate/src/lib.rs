@@ -13,14 +13,12 @@ use std::str;
 
 struct State {
     pub counter: u64,
-    pub processed_chunks: u64,
     pub vec: Vec<u8>,
 }
 
 thread_local! {
     static STATE: Arc<Mutex<State>> = Arc::new(Mutex::new(State {
         counter: 0,
-        processed_chunks: 0, 
         vec: Vec::new(),
     }));
 }
@@ -40,18 +38,8 @@ pub fn get_state() -> i32 {
     return 0;
 }
 
-#[wasm_bindgen(js_name = "getProcessedChunks")]
-pub fn get_processed_chunks() -> i32 {
-    STATE.with(|s| {
-        let mut sg = s.lock().expect("State unlocked");
-        return sg.processed_chunks;
-        });
-    return 0;
-}
-
 #[wasm_bindgen(js_name = "consumeChunk")]
 pub fn consume_chunk(chunk: &Uint8Array) {
-    rustfunc();
     let _buffer: Vec<u8> = chunk.to_vec();
     let number: u8 = 10;
 
@@ -102,8 +90,8 @@ pub fn consume_chunk(chunk: &Uint8Array) {
                     for v in linevec.iter() {
                         sg.vec.push(*v);
                     }
-                    sg.processed_chunks += 1;
                 }); 
+                rustfunc();
                 print_to_console(&format!("Chunk ends and rest of line may be moved to next chunk").into());
                 break;
              }
@@ -117,18 +105,23 @@ pub fn print_to_console(str: &JsValue) {
     }
 }
 
-#[wasm_bindgen]
-pub fn rustfunc() {
+fn rustfunc() {
     unsafe {
-        update();
+        let dummy:Dummy = Dummy::getClass();
+        let _x = dummy.updateResult();
     }
 }
 
 #[wasm_bindgen(raw_module="../../src/dummy")]
 extern "C" {
+    type Dummy;
 
-    #[wasm_bindgen()]
-    fn update() -> u32;
+    #[wasm_bindgen(constructor)]
+    fn getClass() -> Dummy;
+
+    #[wasm_bindgen(method)]
+    fn updateResult(this: &Dummy) -> i32;
+
 
 }
 
