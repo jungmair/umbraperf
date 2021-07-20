@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::str;
 use wasm_bindgen::prelude::*;
 
+
 extern crate console_error_panic_hook;
 use std::panic;
 
@@ -56,11 +57,12 @@ pub fn set_expected_chunks(expected_chunks: i32) -> i32 {
 
 #[wasm_bindgen(js_name = "notifyRustNewFile")]
 pub fn notify_rust_new_file(){
+    let uintarray = get_next();
+    print_to_console(&format!("{:?}", &uintarray).into());   
 }
 
 #[wasm_bindgen(js_name = "consumeChunk")]
 pub fn consume_chunk(chunk: &Uint8Array) {
-    rustfunc();
     let buffer: Vec<u8> = chunk.to_vec();
     let linebreak: u8 = 10;
 
@@ -145,13 +147,13 @@ pub fn process_chunk(state: &mut State, vec: Vec<u8>) {
 }
 
 pub fn print_to_console(str: &JsValue) {
-    unsafe { web_sys::console::log_1(str) };
+    /* unsafe { web_sys::console::log_1(str) }; */
 }
 
-fn rustfunc() {
+fn get_next() -> Uint8Array {
     unsafe {
         let parquet:Parquet = Parquet::getClass();
-        let _x = parquet.passNextToCore();
+        return parquet.passNextToCore()
     }
 }
 
