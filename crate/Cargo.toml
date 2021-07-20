@@ -42,8 +42,7 @@ lazy_static = "1.4.0"
 encode_unicode = "0.3.6"
 unicode-width = "0.1.8"
 csv = "1.0.0-beta.3"
-parquet = { version = "4.4
-.0", default-features = false, features = ["arrow","base64","snap","brotli","clap","serde_json","flate2"]}
+parquet = { version = "4.4.0", default-features = false, features = ["arrow","base64","snap","brotli","clap","serde_json","flate2"]}
 getrandom = { version = "0.2", features = ["js"] }
 
 [dependencies.js-sys]
