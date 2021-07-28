@@ -1,9 +1,13 @@
 extern crate wasm_bindgen;
 
-use arrow::array::Array;
+use arrow::array::{Array, UInt8Array};
+use arrow::csv::reader;
+use futures::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncSeekExt, TryFutureExt};
+use futures::io::{BufReader, Cursor};
 use js_sys::{Uint8Array};
 use std::cell::RefCell;
-use std::io::{BufRead, Read};
+use std::fs::File;
+use std::io::{BufRead, Read, SeekFrom};
 use std::{io};
 use wasm_bindgen::prelude::*;
 
@@ -65,7 +69,7 @@ pub async fn scan_file(p: Web_File) -> Result<(), js_sys::Error> {
     
     unsafe { web_sys::console::log_1(&format!("Scan File triggered").into()) };
     let mut from: i32 = 0;
-    let size: i32 = 5;
+    let size: i32 = 4000;
     loop {
         unsafe { web_sys::console::log_1(&format!("{:?}", &from).into()) };
         unsafe { web_sys::console::log_1(&format!("{:?}", &size).into()) };
@@ -79,40 +83,47 @@ pub async fn scan_file(p: Web_File) -> Result<(), js_sys::Error> {
             unsafe { web_sys::console::log_1(&format!("Chunk is processed to Batch").into()) };
 
 
-            let mut cursor = io::Cursor::new(array.to_vec());
-            let mut buf = vec![];
+            //let mut cursor = io::Cursor::new(array.to_vec());
+            let mut async_cursor = futures::io::Cursor::new(array.to_vec());
+            unsafe { web_sys::console::log_1(&format!("{:?}", &async_cursor).into()) };
 
+            let mut reader = BufReader::with_capacity(4000, async_cursor);
+            //reader.take(400);
+            
+            let mut buf = Vec::with_capacity(2000);
+            let mut string = String::from_utf8(buf).expect("Found invalid UTF-8");
+            let mut old_size  = 0;
             loop {
-                let len_buf = buf.len();
-                let read = cursor.read_until(b'\n', &mut buf);
-                if len_buf == buf.len() {
+                reader.read_line(&mut string).await.unwrap();
+                if old_size == string.len() {
                     break;
                 }
-                unsafe { web_sys::console::log_1(&format!("{:?}",&buf).into()) };
+                old_size = string.len();
+                unsafe { web_sys::console::log_1(&format!("{:?}", &string).into()) };
+            } 
 
-                match read {
-                    Err(x) => {
-                        unsafe { web_sys::console::log_1(&format!("Error reading (cursor)").into()) };
-                    }
-                    Ok(_x) => {
-    
-                    }
-                }
-            
-            }
+
+            //let mut buf = vec![];
+
+            //cursor.read_to_end(&mut buf);
+
+
            
             let arrow_reader_builder = arrow::csv::reader::ReaderBuilder::new();
-            let cursor_reader =  arrow::csv::reader::ReaderBuilder::build(arrow_reader_builder,io::Cursor::new(buf));
+            let cursor_reader =  arrow::csv::reader::ReaderBuilder::build(arrow_reader_builder,io::Cursor::new(string));
             let mut reader = cursor_reader.unwrap();
-             
-            unsafe { web_sys::console::log_1(&format!("Reader is build").into()) };
 
+            unsafe { web_sys::console::log_1(&format!("Reader is build").into()) };
             let batch = &reader.next().unwrap().unwrap();
             let column = batch.column(0);
-            aggregate_batch_column(column);
-            
             unsafe { web_sys::console::log_1(&format!("{:?}", &batch).into()) };
-            from += size;
+
+/*             let batch = &reader.next().unwrap().unwrap();
+/*  */            let column = batch.column(0);
+/*  */            aggregate_batch_column(column);
+ */            
+/*             unsafe { web_sys::console::log_1(&format!("{:?}", &batch).into()) };
+ */            from += size;
         }
     }
 }
@@ -138,6 +149,7 @@ extern "C" {
 
     #[wasm_bindgen(method,catch, js_name = "askJsForChunk")]
     async fn ask_js_for_chunk(this: &Web_File, offset: i32, chunkSize: i32) -> Result<JsValue, JsValue>;
+
 }
 
 #[wasm_bindgen(start)]
