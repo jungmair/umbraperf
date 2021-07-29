@@ -1,11 +1,12 @@
 extern crate wasm_bindgen;
+use csv::StringRecordsIntoIter;
 use wasm_bindgen::prelude::*;
 
 use js_sys::{Uint8Array};
 
 use std::sync::Arc;
 use std::cell::RefCell;
-use std::io::{BufRead};
+use std::io::{BufRead, BufReader};
 use std::{io};
 use std::panic;
 
@@ -81,10 +82,15 @@ pub async fn scan_file(p: Web_File) -> Result<(), js_sys::Error> {
         } else {
             print_to_js("Chunk is processed to Batch");
 
-            let mut cursor = io::Cursor::new(array.to_vec());
-            let mut buf = vec![];
+            // reading
+            
 
-            loop {
+           /*  let mut cursor = io::Cursor::new(array.to_vec());
+            let mut cursor_buf = io::Cursor::new(array.to_vec()); */
+
+/*             let mut buf = vec![];
+ */
+/*             loop {
                 let len_buf = buf.len();
                 let read = cursor.read_until(b'\n', &mut buf);
                 if len_buf == buf.len() {
@@ -100,11 +106,40 @@ pub async fn scan_file(p: Web_File) -> Result<(), js_sys::Error> {
                     }
                 }
             
+            } */
+/* 
+            let max_read_records: Option<usize> = Some(5000);
+
+            let csv_reader = csv::ReaderBuilder::new().from_reader(BufReader::new(cursor_buf));
+
+            let records: Box<Iterator<Item=csv::Result<csv::StringRecord>>> = match max_read_records { 
+                Some(max) => 
+                { Box::new(csv_reader.into_records().take(max).into_iter()) },
+                None => 
+                { Box::new(csv_reader.into_records().into_iter())
+                }
+            };
+
+            for result in records {
+                let record = result.unwrap();
+
+                 // do something with record, e.g. print values from it to console
+                let string: Option<&str> = record.get(0);
+                print_to_js_with_obj(&format!("{:?}",string).into());
             }
-           
-            let arrow_reader_builder = arrow::csv::reader::ReaderBuilder::new();
-            let cursor_reader =  arrow::csv::reader::ReaderBuilder::build(arrow_reader_builder,io::Cursor::new(buf));
-            let mut reader = cursor_reader.unwrap();
+ */
+            
+            //let buf_reader = BufReader::new(cursor_buf);
+
+            /* let arrow_reader_builder = arrow::csv::reader::ReaderBuilder::new();
+            let cursor_reader =  arrow::csv::reader::ReaderBuilder::build(arrow_reader_builder,BufReader::new(cursor));
+            let mut reso_reader = cursor_reader.unwrap();
+            let batch = &reso_reader.next().unwrap().unwrap();
+            let column = batch.column(0);
+            print_to_js_with_obj(&format!("{:?}", &batch).into()); */
+
+
+            /* let mut reader = cursor_reader.unwrap();
              
             print_to_js("Reader is build");
 
@@ -112,7 +147,7 @@ pub async fn scan_file(p: Web_File) -> Result<(), js_sys::Error> {
             let column = batch.column(0);
             aggregate_batch_column(column);
             
-            print_to_js_with_obj(&format!("{:?}", &batch).into());
+            print_to_js_with_obj(&format!("{:?}", &batch).into()); */
             from += size;
         }
     }
@@ -144,7 +179,6 @@ fn print_to_js_with_obj(s: &JsValue) {
     use web_sys::console;
     unsafe { console::log_1(s); }
 }
-
 
 // WASM_BINDGEN 
 #[wasm_bindgen(raw_module = "../../src/model/web_file", js_name="web_file")]
