@@ -11,5 +11,8 @@ extern "C" {
     #[wasm_bindgen(js_name = "stroreResultFromRust")]
     pub fn store_result_from_rust(result: i32, request_id: i32);
 
+    #[wasm_bindgen(js_name = "writeResultToJs")]
+    pub fn write_result_to_js(result: Uint8Array);
+
 
 }
