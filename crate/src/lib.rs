@@ -1,12 +1,16 @@
 extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 
-use std::cell::RefCell;
+use core::num::dec2flt::rawfp::encode_normal;
+use std::{cell::RefCell, convert::TryInto, io::Cursor};
+
+use flatbuffers::FlatBufferBuilder;
 
 // Arrow
 extern crate arrow;
 use arrow::datatypes::Int64Type;
 use arrow::record_batch::RecordBatch;
+use arrow::ipc::writer;
 
 extern crate console_error_panic_hook;
 
@@ -14,6 +18,10 @@ mod console;
 mod console_js_log;
 mod streambuf;
 use streambuf::WebFileReader;
+
+mod writer_to_js;
+use writer_to_js::ArrowResultWriter;
+
 
 use crate::bindings::{store_result_from_rust};
 mod bindings;
@@ -77,6 +85,16 @@ fn aggregate_sum(record_batch: &RecordBatch) {
     print_to_js_with_obj(&format!("{}", sum.unwrap()).into());
     set_sum(sum.unwrap() as i32);
     store_result_from_rust(sum.unwrap() as i32, 0);
+
+
+    Cursor cursor = new
+
+    let writer = ArrowResultWriter::new();
+    let options = arrow::ipc::writer::IpcWriteOptions::default();
+    let mut dict = arrow::ipc::writer::DictionaryTracker::new(true);
+    let encoded = arrow::ipc::writer::IpcDataGenerator::schema_to_bytes(&arrow::ipc::writer::IpcDataGenerator::default(), &record_batch.schema(), &options);
+    arrow::ipc::writer::write_message(writer, encoded, &options);
+    
 }
 
 
