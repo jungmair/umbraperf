@@ -4,7 +4,6 @@ use std::io::{Read, Seek, SeekFrom};
 
 use crate::bindings;
 
-
 pub struct WebFileReader {
     offset: u64,
     length: u64,

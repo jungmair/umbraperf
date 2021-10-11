@@ -60,18 +60,15 @@ pub fn count_rows_over(batch: &RecordBatch, column_to_groupby_over: usize) -> Re
 
     let unique_batch = find_unique_string(&get_record_batches().unwrap(), column_to_groupby_over);
 
-    // Vector of unique strings
     let vec = unique_batch
         .column(0)
         .as_any()
         .downcast_ref::<StringArray>()
         .unwrap();
 
-    // For each *unique* string there will be one result, therefore vec.len()
     let mut result_builder = Float64Array::builder(vec.len());
 
     for group in vec {
-        // Filter unique string as filter_str
         let mut filter_str = Vec::new();
         filter_str.push(group.unwrap());
         let group_batch = filter_with(column_to_groupby_over, filter_str, batch);
@@ -99,19 +96,11 @@ pub fn count_rows_over(batch: &RecordBatch, column_to_groupby_over: usize) -> Re
 
 pub fn max_execution_time(batch: &RecordBatch, column_index_for_max: usize) -> RecordBatch {
 
-    print_to_js_with_obj(&format!("{:?}", batch).into());
-
-
-    print_to_js_with_obj(&format!("{:?}", "Before").into());
-
-
     let vec = batch
     .column(column_index_for_max)
     .as_any()
     .downcast_ref::<Float64Array>()
     .unwrap();
-
-    print_to_js_with_obj(&format!("{:?}", "In Max function").into());
 
     let mut result_builder = Float64Array::builder(1);
 
@@ -123,8 +112,6 @@ pub fn max_execution_time(batch: &RecordBatch, column_index_for_max: usize) -> R
     let schema = Schema::new(vec![result_field]);
 
     let batch = RecordBatch::try_new(Arc::new(schema), vec![Arc::new(result_builder)]).unwrap();
-
-    print_to_js_with_obj(&format!("{:?}", batch).into());
     
     batch
 

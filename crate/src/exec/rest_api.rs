@@ -258,10 +258,6 @@ fn eval_operations(mut record_batch: RecordBatch, op_vec: Vec<&str>) -> RecordBa
         match operator {
             "add_column" => {
                 record_batch = analyze::add_column(&record_batch, params, "parent");
-                print_to_js_with_obj(&format!("{:?}", "pipeline adding").into());
-                print_to_js_with_obj(&format!("{:?}", record_batch).into());
-
-
             }
             "distinct" => {
                 record_batch =

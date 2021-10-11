@@ -17,6 +17,7 @@ use arrow::{
 // Stream Buff
 mod web_file {
     pub mod streambuf;
+    pub mod webfile_chunk_reader;
 }
 
 // Analyze
@@ -43,8 +44,6 @@ mod utils {
 use utils::bindings;
 use utils::record_batch_util;
 use crate::utils::bindings::notify_js_finished_reading;
-
-use parquet;
 
 
 //STATE

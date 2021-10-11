@@ -75,6 +75,7 @@ pub fn init_record_batches(
 ) -> Vec<RecordBatch> {
     let schema = init_schema();
 
+
     let mut reader = Reader::new(
         WebFileReader::new_from_file(file_size),
         Arc::new(schema),
@@ -84,6 +85,11 @@ pub fn init_record_batches(
         None,
         Some(with_projection),
     );
+
+    let reader = parquet::arrow::ArrowReader::get_record_reader(reader, 1024);
+
+    let reader = reader.unwrap();
+
 
     let mut vec = Vec::new();
 
