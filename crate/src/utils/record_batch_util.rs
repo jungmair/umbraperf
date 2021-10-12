@@ -86,7 +86,7 @@ pub fn init_record_batches(
         Some(with_projection),
     );
 
-    let reader = parquet::arrow::ArrowReader::get_record_reader(reader, 1024);
+    // let reader = parquet::arrow::ArrowReader::get_record_reader(reader, 1024);
 
     let reader = reader.unwrap();
 

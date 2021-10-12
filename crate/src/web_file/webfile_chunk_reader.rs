@@ -16,7 +16,7 @@ impl WebFileChunkReader {
 impl ChunkReader for WebFileChunkReader {
     type T = WebFileReader;
 
-    fn get_read(&self, start: u64, length: usize) { //-> Result<Self::T> {
+    fn get_read(&self, start: u64, length: usize) -> Result<WebFileReader, parquet::errors::ParquetError> { //-> Result<Self::T> {
         //Ok(new_from_file(start))
     }
 }
