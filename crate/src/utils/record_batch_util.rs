@@ -6,7 +6,7 @@ use arrow::{
     datatypes::{DataType, Field, Schema, SchemaRef},
     record_batch::RecordBatch,
 };
-use parquet::file::{reader::FileReader, serialized_reader::SerializedFileReader};
+use parquet::{arrow::{ArrowReader, ParquetFileArrowReader}, file::{reader::FileReader, serialized_reader::SerializedFileReader}};
 
 use crate::{
     bindings::notify_js_query_result,
@@ -107,15 +107,27 @@ pub fn init_record_batches(
 
     print_to_js_with_obj(&format!("{:?}", meta_data).into());
 
-    let mut iter = reader.get_row_iter(None).unwrap();
+    // let mut iter = reader.get_row_iter(None).unwrap();
 
-    while let Some(record) = iter.next() {
-        print_to_js_with_obj(&format!("{:?}", record).into());
+    let mut t = ParquetFileArrowReader::new(Arc::new(reader));
 
-        println!("{}", record);
-    }
+    print_to_js_with_obj(&format!("{:?}", "2").into());
+
+    let mut record_reader = t.get_record_reader(1024).unwrap();
+
+    print_to_js_with_obj(&format!("{:?}", "3").into());
+
 
     let mut vec = Vec::new();
+
+    while let Some(item) = record_reader.next() {
+        print_to_js_with_obj(&format!("{:?}", item).into());
+        let batch = item.unwrap();
+        vec.push(batch);
+    }
+
+    print_to_js_with_obj(&format!("{:?}", "4").into());
+
 
     vec
 }
