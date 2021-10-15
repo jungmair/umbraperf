@@ -1,5 +1,6 @@
 // Wasm Bindgen
 extern crate wasm_bindgen;
+use parquet::file::serialized_reader::SerializedFileReader;
 use utils::print_to_cons::print_to_js_with_obj;
 use wasm_bindgen::prelude::*;
 

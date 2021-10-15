@@ -1,9 +1,18 @@
 use std::{io::Cursor, sync::Arc};
 
-use arrow::{array::ArrayRef, csv::Reader, datatypes::{DataType, Field, Schema, SchemaRef}, record_batch::RecordBatch};
+use arrow::{
+    array::ArrayRef,
+    csv::Reader,
+    datatypes::{DataType, Field, Schema, SchemaRef},
+    record_batch::RecordBatch,
+};
+use parquet::file::{reader::FileReader, serialized_reader::SerializedFileReader};
 
-use crate::{bindings::notify_js_query_result, web_file::streambuf::WebFileReader};
-
+use crate::{
+    bindings::notify_js_query_result,
+    utils::print_to_cons::print_to_js_with_obj,
+    web_file::{streambuf::WebFileReader, webfile_chunk_reader::WebFileChunkReader},
+};
 
 pub fn create_record_batch(schema: SchemaRef, columns: Vec<ArrayRef>) -> RecordBatch {
     return RecordBatch::try_new(schema, columns).unwrap();
@@ -75,29 +84,38 @@ pub fn init_record_batches(
 ) -> Vec<RecordBatch> {
     let schema = init_schema();
 
-
+    /*
     let mut reader = Reader::new(
-        WebFileReader::new_from_file(file_size),
+        WebFileChunkReader::new_from_file(file_size),
         Arc::new(schema),
         with_header,
         Some(with_delimiter),
         1024,
         None,
         Some(with_projection),
-    );
+    ); */
+    let chunk_reader = WebFileChunkReader::new(file_size);
+    print_to_js_with_obj(&format!("{:?}", "0").into());
 
-    // let reader = parquet::arrow::ArrowReader::get_record_reader(reader, 1024);
+    let reader = SerializedFileReader::new(chunk_reader);
+
+    print_to_js_with_obj(&format!("{:?}", "1").into());
 
     let reader = reader.unwrap();
 
+    let meta_data = reader.metadata();
+
+    print_to_js_with_obj(&format!("{:?}", meta_data).into());
+
+    let mut iter = reader.get_row_iter(None).unwrap();
+
+    while let Some(record) = iter.next() {
+        print_to_js_with_obj(&format!("{:?}", record).into());
+
+        println!("{}", record);
+    }
 
     let mut vec = Vec::new();
-
-
-    while let Some(item) = reader.next() {
-        let batch = item.unwrap();
-        vec.push(batch);
-    }
 
     vec
 }
@@ -146,7 +164,8 @@ pub fn send_record_batch_to_js(record_batch: &RecordBatch) {
     );
 
     let _writer_schema = arrow::ipc::writer::write_message(&mut buff, encoded_schema, &options);
-    let _writer_mess = arrow::ipc::writer::write_message(&mut buff, encoded_message.unwrap().1, &options);
+    let _writer_mess =
+        arrow::ipc::writer::write_message(&mut buff, encoded_message.unwrap().1, &options);
 
     notify_js_query_result(buff.into_inner());
 }
