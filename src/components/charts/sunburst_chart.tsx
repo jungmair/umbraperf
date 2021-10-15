@@ -8,7 +8,8 @@ import { SignalListeners, Vega } from 'react-vega';
 import { VisualizationSpec } from "react-vega/src";
 import { Redirect } from 'react-router-dom';
 import { createRef } from 'react';
-import _ from "lodash";
+import _, { values } from "lodash";
+import { isFieldPredicate } from 'vega-lite/build/src/predicate';
 
 
 interface Props {
@@ -23,11 +24,15 @@ interface Props {
     chartIdCounter: number;
     chartData: model.ChartDataKeyValue,
     currentPipeline: Array<string> | "All";
+    currentOperator: Array<string> | "All";
     pipelines: Array<string> | undefined;
+    operators: Array<string> | undefined;
     currentTimeBucketSelectionTuple: [number, number],
     setCurrentChart: (newCurrentChart: string) => void;
     setChartIdCounter: (newChartIdCounter: number) => void;
     setCurrentPipeline: (newCurrentPipeline: Array<string>) => void;
+    setCurrentOperator: (newCurrentOperator: Array<string>) => void;
+
 
 }
 
@@ -51,20 +56,32 @@ class SunburstChart extends React.Component<Props, State> {
         this.props.setChartIdCounter((this.state.chartId) + 1);
 
         this.createVisualizationSpec = this.createVisualizationSpec.bind(this);
-        this.handleCklickPipeline = this.handleCklickPipeline.bind(this);
+        this.handleClickPipeline = this.handleClickPipeline.bind(this);
+        this.handleClickOperator = this.handleClickOperator.bind(this);
     }
 
     componentDidUpdate(prevProps: Props): void {
 
-        //if current event, timeframe or chart changes, component did update is executed and queries new data for new event, only if curent event already set
-        if (this.props.currentEvent &&
-            (this.props.currentEvent !== prevProps.currentEvent ||
-                this.props.chartIdCounter !== prevProps.chartIdCounter ||
-                !_.isEqual(this.props.currentTimeBucketSelectionTuple, prevProps.currentTimeBucketSelectionTuple))) {
+        this.requestNewChartData(this.props, prevProps);
+    }
 
-            Controller.requestChartData(this.props.appContext.controller, this.state.chartId, model.ChartType.SUNBURST_CHART);
+    requestNewChartData(props: Props, prevProps: Props): void {
+        if (this.newChartDataNeeded(props, prevProps)) {
+            Controller.requestChartData(props.appContext.controller, this.state.chartId, model.ChartType.SUNBURST_CHART);
         }
+    }
 
+    newChartDataNeeded(props: Props, prevProps: Props): boolean {
+        if (prevProps.currentEvent !== "Default" &&
+            props.pipelines &&
+            (props.currentEvent !== prevProps.currentEvent ||
+                props.chartIdCounter !== prevProps.chartIdCounter ||
+                props.pipelines !== prevProps.pipelines ||
+                !_.isEqual(this.props.currentTimeBucketSelectionTuple, prevProps.currentTimeBucketSelectionTuple))) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     componentDidMount() {
@@ -77,6 +94,14 @@ class SunburstChart extends React.Component<Props, State> {
 
         if (this.props.csvParsingFinished) {
             this.props.setCurrentChart(model.ChartType.SUNBURST_CHART);
+
+            //TODO remove
+            // if (undefined === this.props.pipelines) {
+            //     Controller.requestPipelines(this.props.appContext.controller);
+            // }
+            // if (undefined === this.props.operators) {
+            //     Controller.requestOperators(this.props.appContext.controller);
+            // }
 
             addEventListener('resize', (event) => {
                 this.resizeListener();
@@ -104,6 +129,13 @@ class SunburstChart extends React.Component<Props, State> {
 
     }
 
+    isComponentLoading(): boolean {
+        if (this.props.resultLoading[this.state.chartId] || !this.props.chartData[this.state.chartId] || !this.props.pipelines || !this.props.operators) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     public render() {
 
@@ -112,63 +144,80 @@ class SunburstChart extends React.Component<Props, State> {
         }
 
         return <div ref={this.elementWrapper} style={{ display: "flex", height: "100%" }}>
-            <Vega spec={this.createVisualizationSpec()} signalListeners={this.createVegaSignalListeners()} />
-
-            {/*             {(this.props.resultLoading[this.state.chartId] || !this.props.chartData[this.state.chartId] || !this.props.events)
+            {this.isComponentLoading()
                 ? <Spinner />
                 : <div className={"vegaContainer"}>
                     <Vega spec={this.createVisualizationSpec()} signalListeners={this.createVegaSignalListeners()} />
                 </div>
-            } */}
+            }
         </div>;
     }
 
     createVegaSignalListeners() {
         const signalListeners: SignalListeners = {
-            clickPipeline: this.handleCklickPipeline,
+            clickPipeline: this.handleClickPipeline,
+            clickOperator: this.handleClickOperator,
         }
         return signalListeners;
     }
 
-    handleCklickPipeline(...args: any[]) {
-        const selectedPipeline = args[1].pipeline;
-        if (this.props.currentPipeline === "All") {
-            this.props.setCurrentPipeline(this.props.pipelines!.filter(e => e !== selectedPipeline));
-        } else {
-            if (this.props.currentPipeline.includes(selectedPipeline)) {
-                this.props.setCurrentPipeline(this.props.currentPipeline.filter(e => e !== selectedPipeline));
+    handleClickPipeline(...args: any[]) {
+        if (args[1]) {
+            console.log(args[1]);
+            const selectedPipeline = args[1];
+            if (this.props.currentPipeline === "All") {
+                this.props.setCurrentPipeline(this.props.pipelines!.filter(e => e !== selectedPipeline));
             } else {
-                this.props.setCurrentPipeline(this.props.currentPipeline!.concat(selectedPipeline));
+                if (this.props.currentPipeline.includes(selectedPipeline)) {
+                    this.props.setCurrentPipeline(this.props.currentPipeline.filter(e => e !== selectedPipeline));
+                } else {
+                    this.props.setCurrentPipeline(this.props.currentPipeline.concat(selectedPipeline));
+                }
+            }
+        }
+    }
+
+
+    handleClickOperator(...args: any[]) {
+        if (args[1]) {
+            const selectedOperator = args[1];
+            if (this.props.currentOperator === "All") {
+                console.log(this.props.currentOperator);
+                this.props.setCurrentOperator(this.props.operators!.filter(e => e !== selectedOperator));
+                console.log(this.props.currentOperator);
+            } else {
+                if (this.props.currentOperator.includes(selectedOperator)) {
+                    this.props.setCurrentOperator(this.props.currentOperator.filter(e => e !== selectedOperator));
+                } else {
+                    this.props.setCurrentOperator(this.props.currentOperator.concat(selectedOperator));
+                }
             }
         }
     }
 
     createVisualizationData() {
 
-        //TODO: enable when data from rust
-        //const operatorIdArray = ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISunburstChartData).operator;
-        //const parentPipelinesArray = ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISunburstChartData).parent;
-        //const countArray = ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISunburstChartData).count;
+        const operatorIdArray = ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISunburstChartData).operator;
+        const parentPipelinesArray = ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISunburstChartData).parent;
+        const operatorOccurrences = Array.from(((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISunburstChartData).operatorOccurrences);
+        const pipelineOccurrences = Array.from(((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISunburstChartData).pipelineOccurrences);
 
-        const operatorIdArray = ["pipeline1", "pipeline2", "pipeline3", "tablescan1", "group1", "join1", "map1", "tablescan1", "join1", "tablescan1"];
-        const parentPipelinesArray: Array<string | null> = ["inner", "inner", "inner", "pipeline1", "pipeline1", "pipeline1", "pipeline1", "pipeline2", "pipeline2", "pipeline2"];
-        const countArray: Array<number | null> = [10, 20, 10, 5, 10, 1, 5, 10, 2, 2];
-
-        //add datum for inner circle:
-        operatorIdArray.unshift("inner");
-        parentPipelinesArray.unshift(null);
-        countArray.unshift(null);
+        //add datum for inner circle only on first rerender
+        operatorIdArray[0] !== "inner" && operatorIdArray.unshift("inner");
+        parentPipelinesArray[0] !== null && parentPipelinesArray.unshift(null);
+        operatorOccurrences[0] !== null && operatorOccurrences.unshift(null);
+        pipelineOccurrences[0] !== null && pipelineOccurrences.unshift(null);
 
         const data = [{
 
             name: "tree",
             values: [
-                { operator: operatorIdArray, parent: parentPipelinesArray, occurrences: countArray }
+                { operator: operatorIdArray, parent: parentPipelinesArray, pipeOccurrences: pipelineOccurrences, opOccurrences: operatorOccurrences }
             ],
             transform: [
                 {
                     type: "flatten",
-                    fields: ["operator", "parent", "occurrences"]
+                    fields: ["operator", "parent", "pipeOccurrences", "opOccurrences"]
                 },
                 {
                     type: "stratify",
@@ -177,9 +226,10 @@ class SunburstChart extends React.Component<Props, State> {
                 },
                 {
                     type: "partition",
-                    field: "occurrences",
+                    field: "opOccurrences", //size of leaves -> operators
                     sort: { "field": "value" },
-                    size: [{ "signal": "2 * PI" }, { "signal": "width / 2" }],
+                    // size: [{ "signal": "2 * PI" }, { "signal": "width / 2" }], //determine size of pipeline circles
+                    size: [{ "signal": "2 * PI" }, { "signal": "pieSize" }], //determine size of pipeline circles
                     as: ["a0", "r0", "a1", "r1", "depth", "children"]
                 }
             ],
@@ -187,11 +237,21 @@ class SunburstChart extends React.Component<Props, State> {
         },
         {
             name: "selectedPipelines",
-            values: { pipelinesUsed: this.props.currentPipeline },
+            values: { pipelinesUsed: this.props.currentPipeline === "All" ? this.props.pipelines : this.props.currentPipeline },
             transform: [
                 {
                     type: "flatten",
                     fields: ["pipelinesUsed"]
+                }
+            ]
+        },
+        {
+            name: "selectedOperators",
+            values: { operatorsUsed: this.props.currentOperator === "All" ? this.props.operators : this.props.currentOperator },
+            transform: [
+                {
+                    type: "flatten",
+                    fields: ["operatorsUsed"]
                 }
             ]
         }
@@ -209,8 +269,8 @@ class SunburstChart extends React.Component<Props, State> {
             width: this.state.width - 50,
             height: this.state.height - 10,
             padding: { left: 5, right: 5, top: 5, bottom: 5 },
-            resize: false,
-            autosize: 'fit',
+            autosize: { type: "fit", resize: false },
+
 
             title: {
                 text: "Shares of Pipelines and Operators",
@@ -218,106 +278,123 @@ class SunburstChart extends React.Component<Props, State> {
                 dy: model.chartConfiguration.titlePadding,
                 fontSize: model.chartConfiguration.titleFontSize,
                 font: model.chartConfiguration.titleFont,
-                subtitle: "(Toggle pipelines by click)",
+                subtitle: "Toggle pipelines by click:",
                 subtitleFontSize: model.chartConfiguration.subtitleFontSize,
             },
 
             data: visData,
 
             signals: [
-                { //TODO 
-                    name: "radius",
-                    update: "width / 3.1"
+                {
+                    name: "pieSize",
+                    update: "if(width > 140, 75, 50)"
                 },
-                { // TODO 
+                {
                     name: "clickPipeline",
                     on: [
-                        { events: "arc:click", update: "datum" }
+                        { events: { marktype: "arc", type: "click" }, update: "if(datum.parent === 'inner', datum.operator, null)" }
                     ]
                 },
-                { //TODO 
-                    name: "hover",
+                {
+                    name: "clickOperator",
                     on: [
-                        { "events": "mouseover", "update": "datum" }
+                        { events: { marktype: "arc", type: "click" }, update: "if(datum.parent !== 'inner' && datum.operator !== 'inner', datum.operator, null)" }
                     ]
                 }
             ],
 
             scales: [
-
                 {
-                    "name": "colorPipelines",
-                    "type": "ordinal",
-                    "domain": { "data": "tree", "field": "depth" },
-                    "range": { "scheme": "tableau20" }
+                    name: "colorOperators",
+                    type: "ordinal",
+                    domain: this.props.operators,
+                    range: { scheme: model.chartConfiguration.operatorColorSceme }
+                },
+                {
+                    name: "colorPipelines",
+                    type: "ordinal",
+                    domain: this.props.pipelines,
+                    range: { scheme: model.chartConfiguration.pipelineColorSceme }
+                },
+                {
+                    name: "colorPipelinesDisabled",
+                    type: "ordinal",
+                    domain: this.props.pipelines,
+                    range: { scheme: model.chartConfiguration.disabledColorSceme }
+                },
+                {
+                    name: "colorOperatorsDisabled",
+                    type: "ordinal",
+                    domain: this.props.operators,
+                    range: { scheme: model.chartConfiguration.disabledColorSceme }
                 }
             ],
 
             marks: [
                 {
-                    "type": "arc",
-                    "from": { "data": "tree" },
-                    "encode": {
-                        "enter": {
-                            "x": { "signal": "width / 2" },
-                            "y": { "signal": "height / 2" },
-                            "fill": [
-                                {"scale": "colorPipelines", "field": "depth"}
-                            ], //test: parent null: no fill, parent: inner: use scale, rest orange or black
-                            "tooltip": { "signal": "datum.name + (datum.occurences ? ', ' + datum.occurences + ' occurences' : '')" }
+                    type: "arc",
+                    from: { "data": "tree" },
+                    encode: {
+                        enter: {
+                            x: { signal: "width / 2" },
+                            y: { signal: "height / 2" },
+                            tooltip: [
+                                { test: "datum.parent === 'inner'", signal: model.chartConfiguration.sunburstChartTooltip(true) },
+                                { test: "datum.opOccurrences > 0", signal: model.chartConfiguration.sunburstChartTooltip(false) }
+                            ],
                         },
-                        "update": {
-                            "startAngle": { "field": "a0" },
-                            "endAngle": { "field": "a1" },
-                            "innerRadius": { "field": "r0" },
-                            "outerRadius": { "field": "r1" },
-                            "stroke": { "value": "white" },
-                            "strokeWidth": { "value": 0.5 },
-                            "zindex": { "value": 0 }
+                        update: {
+                            startAngle: { field: "a0" },
+                            endAngle: { field: "a1" },
+                            innerRadius: { field: "r0" },
+                            outerRadius: { field: "r1" },
+                            stroke: { value: "white" },
+                            strokeWidth: { value: 0.5 },
+                            zindex: { value: 0 },
+                            fillOpacity: { value: 1 },
+                            fill: [
+                                { test: "datum.parent==='inner' && indata('selectedPipelines', 'pipelinesUsed', datum.operator)", scale: "colorPipelines", field: "operator" }, // use orange color scale if pipeline is selected
+                                { test: "datum.parent==='inner'", scale: "colorPipelinesDisabled", field: "operator" }, //use grey color scale if pipeline is not selected
+                                { test: "indata('selectedOperators', 'operatorsUsed', datum.operator) && indata('selectedPipelines', 'pipelinesUsed', datum.parent)", scale: "colorOperators", field: "operator" }, // use normal operator color scale if operator is selected (inner operator not colored as not in scale domain), do not use normal scale if whole pipeline is not selected   
+                                { scale: "colorOperatorsDisabled", field: "operator" } //use grey color scale for operators operators as they do not have inner as parent (inner operator not colored as not in scale domain)
+                            ],
                         },
-                        "hover": {
-                            "stroke": { "value": "red" },
-                            "strokeWidth": { "value": 2 },
-                            "zindex": { "value": 1 }
+                        hover: {
+                            fillOpacity: {
+                                value: model.chartConfiguration.hoverFillOpacity,
+                            },
                         }
                     }
                 }
-                // TODO lables
-                /* ,
-                {
-                    "type": "text",
-                    "from": { "data": "table" },
-                    "encode": {
-                        "enter": {
-                            fontSize: { value: model.chartConfiguration.donutChartValueLabelFontSize },
-                            font: model.chartConfiguration.valueLabelFont,
-                            "x": { "signal": "if(width >= height, width, height) / 2" },
-                            "y": { "signal": "if(width >= height, height, width) / 2" },
-                            "radius": { "signal": "if(width >= height, height, width) / 2 * 1.02 * 0.65" },
-                            "theta": { "signal": "(datum['startAngle'] + datum['endAngle'])/2" },
-                            "fill": { "value": "#000" },
-                            "align": { "value": "center" },
-                            "baseline": { "value": "middle" },
-                            "text": { "signal": "if(datum['endAngle'] - datum['startAngle'] < 0.3, '', format(datum['value'] , '.0f'))" },
-                            "fillOpacity": [
-                                { "test": "radius < 30", "value": 0 },
-                                { "test": "datum['value'] === 0", "value": 0 },
-                                { "value": 1 }
-                            ],
+            ],
+            legends: [{
+                fill: "colorPipelines",
+                title: "Pipelines",
+                orient: "right",
+                labelFontSize: model.chartConfiguration.legendLabelFontSize,
+                titleFontSize: model.chartConfiguration.legendTitleFontSize,
+                symbolSize: model.chartConfiguration.legendSymbolSize,
+                values: this.props.pipelines,
+            },
+            {
+                fill: "colorOperators",
+                title: "Operators",
+                orient: "right",
+                direction: "vertical",
+                columns: 3,
+                labelFontSize: model.chartConfiguration.legendLabelFontSize,
+                titleFontSize: model.chartConfiguration.legendTitleFontSize,
+                symbolSize: model.chartConfiguration.legendSymbolSize,
+                values: this.props.operators,
+                encode: {
+                    labels: {
+                        update: {
+                            text: { signal: "truncate(datum.value, 9)" },
                         }
                     }
-                } */
+                }
+            }
             ],
-            //TODO legend
-            /*             legends: [{
-                            fill: "color",
-                            title: "Pipelines",
-                            orient: "right",
-                            labelFontSize: model.chartConfiguration.legendLabelFontSize,
-                            titleFontSize: model.chartConfiguration.legendTitleFontSize,
-                            symbolSize: model.chartConfiguration.legendSymbolSize,
-                        }
-                        ], */
         } as VisualizationSpec;
 
         return spec;
@@ -338,7 +415,9 @@ const mapStateToProps = (state: model.AppState) => ({
     chartIdCounter: state.chartIdCounter,
     chartData: state.chartData,
     currentPipeline: state.currentPipeline,
+    currentOperator: state.currentOperator,
     pipelines: state.pipelines,
+    operators: state.operators,
     currentTimeBucketSelectionTuple: state.currentTimeBucketSelectionTuple,
 });
 
@@ -354,6 +433,10 @@ const mapDispatchToProps = (dispatch: model.Dispatch) => ({
     setCurrentPipeline: (newCurrentPipeline: Array<string>) => dispatch({
         type: model.StateMutationType.SET_CURRENTPIPELINE,
         data: newCurrentPipeline,
+    }),
+    setCurrentOperator: (newCurrentOperator: Array<string>) => dispatch({
+        type: model.StateMutationType.SET_CURRENTOPERATOR,
+        data: newCurrentOperator,
     }),
 });
 

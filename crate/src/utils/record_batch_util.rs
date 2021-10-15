@@ -1,11 +1,5 @@
 use std::{io::Cursor, sync::Arc};
 
-use arrow::{
-    array::ArrayRef,
-    csv::Reader,
-    datatypes::{DataType, Field, Schema, SchemaRef},
-    record_batch::RecordBatch,
-};
 use parquet::{arrow::{ArrowReader, ParquetFileArrowReader}, file::{reader::FileReader, serialized_reader::SerializedFileReader}};
 
 use crate::{
@@ -13,6 +7,8 @@ use crate::{
     utils::print_to_cons::print_to_js_with_obj,
     web_file::{streambuf::WebFileReader, webfile_chunk_reader::WebFileChunkReader},
 };
+use arrow::{array::{Array, ArrayRef}, csv::Reader, datatypes::{DataType, Field, Schema, SchemaRef}, record_batch::RecordBatch};
+
 
 pub fn create_record_batch(schema: SchemaRef, columns: Vec<ArrayRef>) -> RecordBatch {
     return RecordBatch::try_new(schema, columns).unwrap();

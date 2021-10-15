@@ -6,13 +6,12 @@ import { connect } from 'react-redux';
 import EventsButtons from './utils/events_buttons';
 import KpiContainer from './utils/kpi_container';
 import DropdownsOptions from './utils/dropdowns_options';
-import DonutChart from '../components/charts/donut_chart';
 import SunburstChart from '../components/charts/sunburst_chart';
 import SwimLanesMultiplePipelines from '../components/charts/swim_lanes_multiple_pipelines';
 import BarChart from '../components/charts/bar_chart';
 import BarChartActivityHistogram from '../components/charts/bar_chart_activity_histogram';
 import { Grid, Box } from '@material-ui/core';
-
+import { TransitionGroup } from 'react-transition-group';
 
 
 
@@ -84,7 +83,8 @@ class Dashboard extends React.Component<Props, {}> {
                         <Grid item className={styles.dashboardGridCellItem} xs={12} md={6} lg={4} >
                             <Box className={styles.dashboardGridCellChartBoxMainVisualizations}>
                                 <div className={styles.dashboardGridCellChartContainer}>
-                                    <DonutChart />
+                                    {/*<DonutChart />*/}
+                                    <SunburstChart />
                                 </div>
                             </Box>
                         </Grid>
@@ -118,22 +118,10 @@ class Dashboard extends React.Component<Props, {}> {
                             </Box>
                         </Grid>
                     </Box>
-                    <Box clone order={{ xs: 6, md: 6, lg: 6 }}>
-                        <Grid item className={styles.dashboardGridCellItem} xs={12} md={6} lg={4} >
-                            <Box className={styles.dashboardGridCellChartBoxMainVisualizations}>
-                                <div className={styles.dashboardGridCellChartContainer}>
-                                    <SunburstChart />
-                                </div>
-                            </Box>
-                        </Grid>
-                    </Box>
-
                 </Grid>
 
             </div>
-
-
-        </div>;
+        </div >;
     }
 
 

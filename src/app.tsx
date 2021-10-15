@@ -39,11 +39,6 @@ import { RequestController } from './controller/request_controller';
 import { Shadows } from '@material-ui/core/styles/shadows';
 
 
-//Create Redux stroe
-//TODO change to prod store
-//export const store = createProdStore();
-export const store = createDevStore();
-
 const webFileController = new RequestController();
 
 const appColor = {
@@ -62,6 +57,11 @@ export const appContext: IAppContext = {
     secondaryColor: appColor.secondary,
     tertiaryColor: appColor.tertiary,
 };
+
+//Create Redux stroe
+//TODO change to prod store
+//export const store = createProdStore();
+export const store = createDevStore();
 
 const materialUiTheme = createTheme({
     shadows: Array(25).fill("none") as Shadows,
@@ -84,7 +84,7 @@ const materialUiTheme = createTheme({
       },
 })
 
-export const routes = [
+export const topLevelComponents = [
     {
         path: '/upload',
         sidebarName: 'Upload File',
@@ -212,7 +212,7 @@ export default function App() {
                                             <Dummy />
                                         </Route>
 
-                                        {routes.map((route: any) => {
+                                        {topLevelComponents.map((route: any) => {
                                             return <Route exact path={route.path} key={route.path}>
                                                 <VisualizationContainer component={route.component} visualizationName={route.path} />
                                             </Route>

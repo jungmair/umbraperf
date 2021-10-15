@@ -9,6 +9,7 @@ import { VisualizationSpec } from "../../../node_modules/react-vega/src";
 import { Redirect } from 'react-router-dom';
 import { createRef } from 'react';
 import _ from "lodash";
+import { View } from 'vega';
 
 
 interface Props {
@@ -20,9 +21,11 @@ interface Props {
     currentEvent: string;
     currentRequest: model.RestQueryType | undefined;
     events: Array<string> | undefined;
+    operators: Array<string> | undefined;
     chartIdCounter: number;
     chartData: model.ChartDataKeyValue,
     currentPipeline: Array<string> | "All",
+    currentOperators: Array<string> | "All",
     currentInterpolation: String,
     currentBucketSize: number,
     currentTimeBucketSelectionTuple: [number, number],
@@ -30,16 +33,15 @@ interface Props {
     setChartIdCounter: (newChartIdCounter: number) => void;
 
     absoluteValues?: boolean;
-
 }
 
 interface State {
     chartId: number,
-    chartData: model.ISwimlanesData | undefined,
     width: number,
     height: number,
+    maxYDomainAbsoluteValues: number,
+    currentDomainAbsoluteValues: number,
 }
-
 
 class SwimLanesMultiplePipelines extends React.Component<Props, State> {
 
@@ -51,51 +53,46 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
             chartId: this.props.chartIdCounter,
             width: 0,
             height: 0,
-            chartData: undefined,
+            maxYDomainAbsoluteValues: 0,
+            currentDomainAbsoluteValues: 0,
         };
         this.props.setChartIdCounter(this.state.chartId + 1);
 
         this.createVisualizationSpec = this.createVisualizationSpec.bind(this);
+        this.handleVegaView = this.handleVegaView.bind(this);
     }
 
     componentDidUpdate(prevProps: Props, prevState: State): void {
 
-        //ensure changed app state and only proceed when result available
-        if (!this.props.resultLoading[this.state.chartId] && this.props.chartData[this.state.chartId] && prevProps.resultLoading[this.state.chartId] !== this.props.resultLoading[this.state.chartId]) {
-
-            const chartDataElement: model.ISwimlanesData = {
-                buckets: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).buckets,
-                operators: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).operators,
-                frequency: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).frequency,
-            }
-
-            this.setState((state, props) => {
-                return {
-                    ...this.state,
-                    chartData: chartDataElement,
-                }
-            });
-
-        }
-
-        //if current event, chart, bucketsize, timeframe or pipelines change, component did update is executed and queries new data for new event and pipelines selected only if current event and current pipelines already set
-        if (this.props.currentEvent &&
-            (this.props.currentEvent !== prevProps.currentEvent ||
-                this.props.currentBucketSize !== prevProps.currentBucketSize ||
-                this.props.chartIdCounter !== prevProps.chartIdCounter ||
-                this.props.currentPipeline.length !== prevProps.currentPipeline.length ||
-                !_.isEqual(this.props.currentTimeBucketSelectionTuple, prevProps.currentTimeBucketSelectionTuple))) {
-
-
-            if (this.props.absoluteValues) {
-                Controller.requestChartData(this.props.appContext.controller, this.state.chartId, model.ChartType.SWIM_LANES_MULTIPLE_PIPELINES_ABSOLUTE);
-            } else {
-                Controller.requestChartData(this.props.appContext.controller, this.state.chartId, model.ChartType.SWIM_LANES_MULTIPLE_PIPELINES);
-            }
-        }
+        this.resetMaxAndCurrentAbsoluteYDomain(this.props, prevProps);
+        this.requestNewChartData(this.props, prevProps);
 
     }
 
+    requestNewChartData(props: Props, prevProps: Props): void {
+        if (this.newChartDataNeeded(props, prevProps)) {
+            if (this.props.absoluteValues) {
+                Controller.requestChartData(props.appContext.controller, this.state.chartId, model.ChartType.SWIM_LANES_MULTIPLE_PIPELINES_ABSOLUTE);
+            } else {
+                Controller.requestChartData(props.appContext.controller, this.state.chartId, model.ChartType.SWIM_LANES_MULTIPLE_PIPELINES);
+            }
+        }
+    }
+
+    newChartDataNeeded(props: Props, prevProps: Props): boolean {
+        if (prevProps.currentEvent !== "Default" &&
+            (props.currentEvent !== prevProps.currentEvent ||
+                props.operators !== prevProps.operators ||
+                props.currentOperators.length !== prevProps.currentOperators.length ||
+                props.currentBucketSize !== prevProps.currentBucketSize ||
+                props.chartIdCounter !== prevProps.chartIdCounter ||
+                props.currentPipeline.length !== prevProps.currentPipeline.length ||
+                !_.isEqual(props.currentTimeBucketSelectionTuple, prevProps.currentTimeBucketSelectionTuple))) {
+            return true;
+        } else {
+            return false;
+        }
+    }
 
     componentDidMount() {
         this.setState((state, props) => ({
@@ -106,7 +103,7 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
 
         if (this.props.csvParsingFinished) {
 
-            this.props.absoluteValues ? this.props.setCurrentChart(model.ChartType.SWIM_LANES_MULTIPLE_PIPELINES_ABSOLUTE) : this.props.setCurrentChart(model.ChartType.SWIM_LANES_MULTIPLE_PIPELINES);
+            this.props.setCurrentChart(this.props.absoluteValues ? model.ChartType.SWIM_LANES_MULTIPLE_PIPELINES_ABSOLUTE : model.ChartType.SWIM_LANES_MULTIPLE_PIPELINES);
 
             addEventListener('resize', (event) => {
                 this.resizeListener();
@@ -138,6 +135,14 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
         }
     }
 
+    isComponentLoading(): boolean {
+        if (this.props.resultLoading[this.state.chartId] || !this.props.chartData[this.state.chartId] || !this.props.operators) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
 
     public render() {
 
@@ -146,20 +151,61 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
         }
 
         return <div ref={this.elementWrapper} style={{ display: "flex", height: "100%" }}>
-            {(this.props.resultLoading[this.state.chartId] || !this.state.chartData || !this.props.events)
+            {this.isComponentLoading()
                 ? <Spinner />
                 : <div className={"vegaContainer"}>
-                    <Vega className={`vegaSwimlaneMultiplePipelines}`} spec={this.createVisualizationSpec()} />
+                    <Vega className={`vegaSwimlaneMultiplePipelines}`} spec={this.createVisualizationSpec()} onNewView={this.handleVegaView} />
                 </div>
             }
         </div>;
     }
 
+    handleVegaView(view: View) {
+        //to figure out max y axis domain of absolute chart, get stacked data from vega and find out max
+        if (this.props.absoluteValues) {
+            const viewData = view.data("table");
+            const dataY1Array = viewData.map(datum => datum.y1);
+            const maxY1Value = Math.max(...dataY1Array);
+            this.setMaxAndCurrentAbsoluteYDomain(maxY1Value);
+        }
+    }
+
+    setMaxAndCurrentAbsoluteYDomain(currentMaxFreqStacked: number) {
+        if (0 === this.state.maxYDomainAbsoluteValues || currentMaxFreqStacked > this.state.maxYDomainAbsoluteValues) {
+            this.setState((state, props) => ({
+                ...state,
+                maxYDomainAbsoluteValues: currentMaxFreqStacked,
+            }));
+        } else {
+            this.setState((state, props) => ({
+                ...state,
+                currentDomainAbsoluteValues: currentMaxFreqStacked,
+            }));
+        }
+    }
+
+    resetMaxAndCurrentAbsoluteYDomain(props: Props, prevProps: Props){
+        //reset max y domain for absolute chart on event and bucketsize change
+        if(props.currentEvent !== prevProps.currentEvent || props.currentBucketSize !== prevProps.currentBucketSize){
+            this.setState((state, props) => ({
+                ...state,
+                maxYDomainAbsoluteValues: 0,
+            }));
+        }
+    }
+
+
     createVisualizationData() {
+        
+        const chartDataElement: model.ISwimlanesData = {
+            buckets: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).buckets,
+            operators: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).operators,
+            frequency: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).frequency,
+        }
 
         const data = {
-            "name": "table",
-            "values": this.state.chartData,
+            name: "table",
+            values: chartDataElement,
             transform: [
                 { "type": "flatten", "fields": ["buckets", "operators", "frequency"] },
                 { "type": "collect", "sort": { "field": "operators" } },
@@ -167,7 +213,8 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
             ]
         };
 
-        return data;
+        return { data: data, chartDataElement: chartDataElement };
+
     }
 
     createVisualizationSpec() {
@@ -175,7 +222,7 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
 
         const xTicks = () => {
 
-            const bucketsArrayLength = this.state.chartData!.buckets.length;
+            const bucketsArrayLength = visData.chartDataElement.buckets.length;
             const numberOfTicks = 20;
 
             if (bucketsArrayLength > numberOfTicks) {
@@ -185,34 +232,12 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
                 const delta = Math.floor(bucketsArrayLength / numberOfTicks);
 
                 for (let i = 0; i < bucketsArrayLength; i = i + delta) {
-                    ticks.push(this.state.chartData!.buckets[i]);
+                    ticks.push(visData.chartDataElement.buckets[i]);
                 }
                 return ticks;
             }
 
-        }
-
-        const yScale = () => {
-            if (this.props.absoluteValues) {
-                return {
-                    name: "y",
-                    type: "linear",
-                    range: "height",
-                    nice: true,
-                    zero: true,
-                    domain: { data: "table", field: "y1" }
-                };
-            } else {
-                return {
-                    name: "y",
-                    type: "linear",
-                    range: "height",
-                    nice: true,
-                    zero: true,
-                    domain: [0, 1]
-                };
-            }
-        }
+        };
 
         const spec: VisualizationSpec = {
             $schema: "https://vega.github.io/schema/vega/v5.json",
@@ -231,9 +256,16 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
             },
 
             data: [
-                visData
+                visData.data
             ],
 
+            signals: [
+                {
+                    name: "getMaxY1Absolute",
+                    value: 10
+                }
+
+            ],
 
             scales: [
                 {
@@ -245,17 +277,21 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
                         field: "buckets"
                     }
                 },
-                yScale(),
+                {
+                    name: "y",
+                    type: "linear",
+                    range: "height",
+                    nice: true,
+                    zero: true,
+                    domain: this.props.absoluteValues  ? [0, this.state.maxYDomainAbsoluteValues] : [0, 1]
+                },
                 {
                     name: "color",
                     type: "ordinal",
                     range: {
-                        scheme: "tableau20",
+                        scheme: model.chartConfiguration.operatorColorSceme,
                     },
-                    domain: {
-                        data: "table",
-                        field: "operators"
-                    }
+                    domain: this.props.operators,
                 }
             ],
             axes: [
@@ -335,8 +371,8 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
                                 },
                                 hover: {
                                     fillOpacity: {
-                                        value: 0.5
-                                    }
+                                        value: model.chartConfiguration.hoverFillOpacity,
+                                    },
                                 }
                             }
                         }
@@ -350,6 +386,7 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
                 labelFontSize: model.chartConfiguration.legendLabelFontSize,
                 titleFontSize: model.chartConfiguration.legendTitleFontSize,
                 symbolSize: model.chartConfiguration.legendSymbolSize,
+                values: this.props.operators,
             }
             ],
         } as VisualizationSpec;
@@ -367,9 +404,11 @@ const mapStateToProps = (state: model.AppState) => ({
     currentEvent: state.currentEvent,
     currentRequest: state.currentRequest,
     events: state.events,
+    operators: state.operators,
     chartIdCounter: state.chartIdCounter,
     chartData: state.chartData,
     currentPipeline: state.currentPipeline,
+    currentOperators: state.currentOperator,
     currentInterpolation: state.currentInterpolation,
     currentBucketSize: state.currentBucketSize,
     currentTimeBucketSelectionTuple: state.currentTimeBucketSelectionTuple,

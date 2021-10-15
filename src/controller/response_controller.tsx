@@ -1,6 +1,8 @@
 import * as ArrowTable from "../../node_modules/apache-arrow/table";
 import * as model from "../model";
 import { store } from '../app';
+import * as RequestController from "./request_controller";
+import { appContext } from "../app";
 
 
 export function setCsvReadingFinished() {
@@ -9,6 +11,8 @@ export function setCsvReadingFinished() {
         type: model.StateMutationType.SET_CSVPARSINGFINISHED,
         data: true,
     });
+
+    RequestController.requestMetadata(appContext.controller);
 }
 
 export function storeResultFromRust(requestId: number, result: ArrowTable.Table<any>, metaRequest: boolean, restQueryType: model.RestQueryType) {
@@ -54,6 +58,14 @@ function storeMetaDataFromRust(restQueryType: model.RestQueryType) {
             store.dispatch({
                 type: model.StateMutationType.SET_PIPELINES,
                 data: pipelines,
+            });
+            break;
+
+        case model.RestQueryType.GET_OPERATORS:
+            const operators = store.getState().result?.resultTable.getColumn('operator').toArray();
+            store.dispatch({
+                type: model.StateMutationType.SET_OPERATORS,
+                data: operators,
             });
             break;
 
@@ -184,6 +196,23 @@ function storeChartDataFromRust(requestId: number, resultObject: model.Result, r
                 });
             break;
 
+        case model.RestQueryType.GET_ABS_OP_DISTR_PER_BUCKET_PER_MULTIPLE_PIPELINES_COMBINED_EVENTS:
+
+            chartDataElem = model.createChartDataObject(
+                requestId,
+                {
+                    chartType: model.ChartType.SWIM_LANES_COMBINED_MULTIPLE_PIPELINES_ABSOLUTE,
+                    data: {
+                        buckets: resultObject.resultTable.getColumn('bucket').toArray(),
+                        operators: resultObject.resultTable.getColumn('operator').toArray(),
+                        frequency: resultObject.resultTable.getColumn('absfreq').toArray(),
+                        bucketsNeg: resultObject.resultTable.getColumn('bucketNEG').toArray(),
+                        operatorsNeg: resultObject.resultTable.getColumn('operatorNEG').toArray(),
+                        frequencyNeg: resultObject.resultTable.getColumn('absfreqNEG').toArray(),
+                    }
+                });
+            break;
+
         case model.RestQueryType.GET_PIPELINE_COUNT:
 
             chartDataElem = model.createChartDataObject(
@@ -217,9 +246,10 @@ function storeChartDataFromRust(requestId: number, resultObject: model.Result, r
                 {
                     chartType: model.ChartType.SUNBURST_CHART,
                     data: {
-                        operator: resultObject.resultTable.getColumn('operator').toArray(),
+                        operator: resultObject.resultTable.getColumn('pipeline').toArray(),
                         parent: resultObject.resultTable.getColumn('parent').toArray(),
-                        count: resultObject.resultTable.getColumn('count').toArray(),
+                        operatorOccurrences: resultObject.resultTable.getColumn('occurrences').toArray(),
+                        pipelineOccurrences: resultObject.resultTable.getColumn('pipeOccurrences').toArray(),
                     }
                 });
             break;

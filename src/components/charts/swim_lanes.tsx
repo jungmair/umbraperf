@@ -19,6 +19,7 @@ interface Props {
    currentEvent: string;
    currentRequest: model.RestQueryType | undefined;
    events: Array<string> | undefined;
+   operators: Array<string> | undefined;
    chartIdCounter: number;
    chartData: model.ChartDataKeyValue,
    currentInterpolation: String,
@@ -30,7 +31,6 @@ interface Props {
 
 interface State {
    chartId: number,
-   chartData: model.ISwimlanesData | undefined,
    width: number,
    height: number,
 }
@@ -50,7 +50,6 @@ class SwimLanes extends React.Component<Props, State> {
          chartId: this.props.chartIdCounter,
          width: startSize.width,
          height: startSize.height,
-         chartData: undefined,
       };
       this.props.setChartIdCounter(this.state.chartId + 1);
 
@@ -59,31 +58,26 @@ class SwimLanes extends React.Component<Props, State> {
 
    componentDidUpdate(prevProps: Props, prevState: State): void {
 
-      //ensure changed app state and only proceed when result available
-      if (!this.props.resultLoading[this.state.chartId] && this.props.chartData[this.state.chartId] && prevProps.resultLoading[this.state.chartId] !== this.props.resultLoading[this.state.chartId]) {
+      this.requestNewChartData(this.props, prevProps);
 
-         let chartDataElement: model.ISwimlanesData = {
-            buckets: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).buckets,
-            operators: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).operators,
-            frequency: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).frequency,
-         }
+   }
 
-         this.setState((state, props) => {
-            return {
-               ...this.state,
-               chartData: chartDataElement,
-            }
-         });
+   requestNewChartData(props: Props, prevProps: Props): void {
+      if (this.newChartDataNeeded(props, prevProps)) {
+         Controller.requestChartData(props.appContext.controller, this.state.chartId, model.ChartType.SWIM_LANES);
       }
+   }
 
-      //if current event, chart or bucketsize changes, component did update is executed and queries new data for new event, only if curent event already set
-      if (this.props.currentEvent &&
-         (this.props.currentEvent !== prevProps.currentEvent ||
-            this.props.currentBucketSize !== prevProps.currentBucketSize ||
-            this.props.chartIdCounter !== prevProps.chartIdCounter)) {
-         Controller.requestChartData(this.props.appContext.controller, this.state.chartId, model.ChartType.SWIM_LANES);
+   newChartDataNeeded(props: Props, prevProps: Props): boolean {
+      if (prevProps.currentEvent !== "Default" &&
+         (props.currentEvent !== prevProps.currentEvent ||
+            props.operators !== prevProps.operators ||
+            props.currentBucketSize !== prevProps.currentBucketSize ||
+            props.chartIdCounter !== prevProps.chartIdCounter)) {
+         return true;
+      } else {
+         return false;
       }
-
    }
 
 
@@ -123,6 +117,14 @@ class SwimLanes extends React.Component<Props, State> {
       }
    }
 
+   isComponentLoading(): boolean {
+      if (this.props.resultLoading[this.state.chartId] || !this.props.chartData[this.state.chartId] || !this.props.operators) {
+         return true;
+      } else {
+         return false;
+      }
+   }
+
 
    public render() {
 
@@ -131,7 +133,7 @@ class SwimLanes extends React.Component<Props, State> {
       }
 
       return <div>
-         {(this.props.resultLoading[this.state.chartId] || !this.state.chartData || !this.props.events)
+         {this.isComponentLoading()
             ? <Spinner />
             : <div className={"vegaContainer"} ref={this.chartWrapper}>
                <Vega className={`vegaSwimlaneTotal}`} spec={this.createVisualizationSpec()} />
@@ -142,9 +144,15 @@ class SwimLanes extends React.Component<Props, State> {
 
    createVisualizationData() {
 
+      const chartDataElement: model.ISwimlanesData = {
+         buckets: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).buckets,
+         operators: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).operators,
+         frequency: ((this.props.chartData[this.state.chartId] as model.ChartDataObject).chartData.data as model.ISwimlanesData).frequency,
+      }
+
       const data = {
          "name": "table",
-         "values": this.state.chartData,
+         "values": chartDataElement,
          transform: [
             { "type": "flatten", "fields": ["buckets", "operators", "frequency"] },
             { "type": "collect", "sort": { "field": "operators" } },
@@ -152,7 +160,7 @@ class SwimLanes extends React.Component<Props, State> {
          ]
       };
 
-      return data;
+      return { data: data, chartDataElement: chartDataElement };
    }
 
    createVisualizationSpec() {
@@ -160,7 +168,7 @@ class SwimLanes extends React.Component<Props, State> {
 
       const xTicks = () => {
 
-         const bucketsArrayLength = this.state.chartData!.buckets.length;
+         const bucketsArrayLength = visData.chartDataElement.buckets.length;
          const numberOfTicks = 20;
 
          if (bucketsArrayLength > numberOfTicks) {
@@ -170,7 +178,7 @@ class SwimLanes extends React.Component<Props, State> {
             const delta = Math.floor(bucketsArrayLength / numberOfTicks);
 
             for (let i = 0; i < bucketsArrayLength; i = i + delta) {
-               ticks.push(this.state.chartData!.buckets[i]);
+               ticks.push(visData.chartDataElement.buckets[i]);
             }
             return ticks;
          }
@@ -193,7 +201,7 @@ class SwimLanes extends React.Component<Props, State> {
          },
 
          data: [
-            visData
+            visData.data
          ],
 
          scales: [
@@ -218,12 +226,9 @@ class SwimLanes extends React.Component<Props, State> {
                name: "color",
                type: "ordinal",
                range: {
-                  scheme: "tableau20",
+                  scheme: model.chartConfiguration.operatorColorSceme,
                },
-               domain: {
-                  data: "table",
-                  field: "operators"
-               }
+               domain: this.props.operators,
             }
          ],
          axes: [
@@ -297,8 +302,8 @@ class SwimLanes extends React.Component<Props, State> {
                         },
                         hover: {
                            fillOpacity: {
-                              value: 0.5
-                           }
+                              value: model.chartConfiguration.hoverFillOpacity,
+                           },
                         }
                      }
                   }
@@ -326,6 +331,7 @@ const mapStateToProps = (state: model.AppState) => ({
    currentEvent: state.currentEvent,
    currentRequest: state.currentRequest,
    events: state.events,
+   operators: state.operators,
    chartIdCounter: state.chartIdCounter,
    chartData: state.chartData,
    currentInterpolation: state.currentInterpolation,

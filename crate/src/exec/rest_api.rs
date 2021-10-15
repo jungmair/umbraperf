@@ -9,10 +9,7 @@ use crate::{
     utils::{print_to_cons::print_to_js_with_obj, record_batch_util::convert},
 };
 
-use super::{
-    basic::{analyze, count},
-    freq::abs_freq,
-};
+use super::{basic::{analyze, count}, freq::abs_freq::{self, abs_freq_of_event}};
 
 fn split_at_excl_mark(params: &str) -> Vec<&str> {
     return params.split_terminator("!").collect::<Vec<&str>>();
@@ -41,6 +38,8 @@ fn split_at_double_percent(params: &str) -> Vec<&str> {
 // Find name in Record Batch
 // Panic if error, else usize of column
 fn find_name(name: &str, batch: &RecordBatch) -> usize {
+    print_to_js_with_obj(&format!("{:?}", name).into());
+
     let schema = batch.schema();
     let fields = schema.fields();
     for (i, field) in fields.iter().enumerate() {
@@ -96,29 +95,36 @@ fn abs_freq(record_batch: RecordBatch, params: &str) -> RecordBatch {
     let split_fields_bucket_size = split_at_colon(params);
     let fields = split_fields_bucket_size[0];
 
-    if !fields.contains("pipeline") {
-        let bucket_size = split_fields_bucket_size[1].parse::<f64>().unwrap();
-
-        return abs_freq::abs_freq_of_event(
-            &record_batch,
-            find_name("ev_name", &record_batch),
-            find_name("time", &record_batch),
-            bucket_size,
-        );
+    if params.contains("&") {
+        return abs_freq_double_event_pipeline(record_batch, params);
     } else {
-        let split = split_at_excl_mark(params);
-        let split_fields_bucket_size = split_at_colon(split[0]);
+        if !fields.contains("pipeline") {
+            let bucket_size = split_fields_bucket_size[1].parse::<f64>().unwrap();
 
-        let bucket_size = split_fields_bucket_size[1].parse::<f64>().unwrap();
+            return abs_freq::abs_freq_of_event(
+                &record_batch,
+                find_name("ev_name", &record_batch),
+                find_name("time", &record_batch),
+                bucket_size,
+            );
+        } else {
+            let split = split_at_excl_mark(params);
+            let split_fields_bucket_size = split_at_colon(split[0]);
 
-        let pipeline_vec = split_at_comma(split[1]);
-        return abs_freq::abs_freq_of_pipelines(
-            &record_batch,
-            find_name("operator", &record_batch),
-            find_name("time", &record_batch),
-            bucket_size,
-            pipeline_vec,
-        );
+            let bucket_size = split_fields_bucket_size[1].parse::<f64>().unwrap();
+
+            let pipeline_vec = split_at_comma(split[1]);
+            let operator_vec = split_at_comma(split[2]);
+
+            return abs_freq::abs_freq_of_pipelines(
+                &record_batch,
+                find_name("operator", &record_batch),
+                find_name("time", &record_batch),
+                bucket_size,
+                pipeline_vec,
+                operator_vec,
+            );
+        }
     }
 }
 
@@ -152,6 +158,36 @@ fn rel_freq_double_event_pipeline(record_batch: RecordBatch, params: &str) -> Re
     );
 }
 
+fn abs_freq_double_event_pipeline(record_batch: RecordBatch, params: &str) -> RecordBatch {
+    let split = split_at_excl_mark(params);
+
+    let before_excl_mark = 0;
+    let after_excl_mark = 1;
+    let split_fields_bucket_size = split_at_colon(split[before_excl_mark]);
+    let end = split_at_and(split[after_excl_mark]);
+    let pipeline_vec = split_at_comma(end[0]);
+    let event_vec = split_at_comma(end[1]);
+
+    let before_colon = 0;
+    let after_colon = 1;
+    let field_vec = split_at_comma(split_fields_bucket_size[before_colon]);
+
+    let _pipeline = field_vec[before_colon];
+    let time = field_vec[after_colon];
+    let bucket_size = split_fields_bucket_size[after_colon]
+        .parse::<f64>()
+        .unwrap();
+
+    return abs_freq::abs_freq_with_pipelines_with_double_events(
+        &record_batch,
+        find_name("operator", &record_batch),
+        find_name(time, &record_batch),
+        bucket_size,
+        pipeline_vec,
+        event_vec,
+    );
+}
+
 fn rel_freq_specific_pipelines(record_batch: RecordBatch, params: &str) -> RecordBatch {
     let split = split_at_excl_mark(params);
 
@@ -159,6 +195,7 @@ fn rel_freq_specific_pipelines(record_batch: RecordBatch, params: &str) -> Recor
     let after_excl_mark = 1;
     let split_fields_bucket_size = split_at_colon(split[before_excl_mark]);
     let pipeline_vec = split_at_comma(split[after_excl_mark]);
+    let operator_vec = split_at_comma(split[2]);
 
     let before_colon = 0;
     let after_colon = 1;
@@ -177,6 +214,7 @@ fn rel_freq_specific_pipelines(record_batch: RecordBatch, params: &str) -> Recor
         find_name(time, &record_batch),
         bucket_size,
         pipeline_vec,
+        operator_vec,
     );
 }
 
@@ -223,6 +261,7 @@ fn rel_freq_total_pipelines(record_batch: RecordBatch, fields: &str, params: &st
         find_name(fields, &record_batch),
         bucket_size,
         Vec::new(),
+        Vec::new(),
     );
 }
 
@@ -247,17 +286,44 @@ fn rel_freq(record_batch: RecordBatch, params: &str) -> RecordBatch {
     }
 }
 
+fn add_column(record_batch: &RecordBatch, params: &str) -> RecordBatch {
+    let split = split_at_comma(params);
+    if split[0].contains("\"") {
+        analyze::add_column(record_batch, &split[0].replace("\"", ""), split[1])
+    } else {
+        analyze::add_column_float(record_batch, split[0].parse::<f64>().unwrap(), split[1])
+    }
+}
+
+fn rename(record_batch: &RecordBatch, params: &str) -> RecordBatch {
+    let split = split_at_comma(params);
+    analyze::rename(record_batch, split[0], split[1])
+}
+
+fn sort(record_batch: &RecordBatch, params: &str) -> RecordBatch {
+    if params.contains(",") {
+        let split = split_at_comma(params);
+        if split[1] == "desc" {
+            return analyze::sort_batch(&record_batch, find_name(split[0], &record_batch), true);
+        } else {
+            return analyze::sort_batch(&record_batch, find_name(split[0], &record_batch), false);
+        }
+    }
+    return analyze::sort_batch(&record_batch, find_name(params, &record_batch), false);
+}
+
 fn eval_operations(mut record_batch: RecordBatch, op_vec: Vec<&str>) -> RecordBatch {
     for op in op_vec {
         let split = op.split_terminator("?").collect::<Vec<&str>>();
         let operator = split[0];
         let params = split[1];
 
-        print_to_js_with_obj(&format!("{:?}", op).into());
-
         match operator {
+            "rename" => {
+                record_batch = rename(&record_batch, params);
+            }
             "add_column" => {
-                record_batch = analyze::add_column(&record_batch, params, "parent");
+                record_batch = add_column(&record_batch, params);
             }
             "distinct" => {
                 record_batch =
@@ -293,7 +359,7 @@ fn eval_operations(mut record_batch: RecordBatch, op_vec: Vec<&str>) -> RecordBa
                 record_batch = rel_freq(record_batch, params);
             }
             "sort" => {
-                record_batch = analyze::sort_batch(&record_batch, find_name(params, &record_batch));
+                record_batch = sort(&record_batch, params);
             }
             _ => {
                 panic!("Not supported operator!");
