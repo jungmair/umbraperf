@@ -77,52 +77,18 @@ pub fn init_record_batches(
     with_header: bool,
     with_projection: Vec<usize>,
 ) -> Vec<RecordBatch> {
-    let schema = init_schema();
 
-    /*
-    let mut reader = Reader::new(
-        WebFileChunkReader::new_from_file(file_size),
-        Arc::new(schema),
-        with_header,
-        Some(with_delimiter),
-        1024,
-        None,
-        Some(with_projection),
-    ); */
     let chunk_reader = WebFileChunkReader::new(file_size);
-    print_to_js_with_obj(&format!("{:?}", "0").into());
-
-    let reader = SerializedFileReader::new(chunk_reader);
-
-    print_to_js_with_obj(&format!("{:?}", "1").into());
-
-    let reader = reader.unwrap();
-
-    let meta_data = reader.metadata();
-
-    print_to_js_with_obj(&format!("{:?}", meta_data).into());
-
-    // let mut iter = reader.get_row_iter(None).unwrap();
-
-    let mut t = ParquetFileArrowReader::new(Arc::new(reader));
-
-    print_to_js_with_obj(&format!("{:?}", "2").into());
-
-    let mut record_reader = t.get_record_reader(1024).unwrap();
-
-    print_to_js_with_obj(&format!("{:?}", "3").into());
-
+    let reader = SerializedFileReader::new(chunk_reader).unwrap();
+    let mut parquet_reader = ParquetFileArrowReader::new(Arc::new(reader));
+    let mut record_reader = parquet_reader.get_record_reader(8).unwrap();
 
     let mut vec = Vec::new();
 
     while let Some(item) = record_reader.next() {
-        print_to_js_with_obj(&format!("{:?}", item).into());
         let batch = item.unwrap();
         vec.push(batch);
     }
-
-    print_to_js_with_obj(&format!("{:?}", "4").into());
-
 
     vec
 }
