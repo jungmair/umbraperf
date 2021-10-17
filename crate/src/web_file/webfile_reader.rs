@@ -2,15 +2,15 @@ use js_sys::Uint8Array;
 use std::io::Result;
 
 use crate::bindings;
-use crate::utils::print_to_cons::print_to_js_with_obj;
+
 
 pub struct WebFileReader {
-    pub start_to_read: u64
+    pub start_to_read: usize
 }
 
 impl WebFileReader {
     
-    pub fn init_reader(start_to_read: u64) -> Self {
+    pub fn init_reader(start_to_read: usize) -> Self {
         Self {
             start_to_read
         }
@@ -20,13 +20,10 @@ impl WebFileReader {
 
         let read_size = out.len();
 
-        print_to_js_with_obj(&format!("{:?} {:?} {:?}", "read()", "readsize", read_size).into());
-
         let chunk = bindings::read_file_chunk(self.start_to_read as i32, read_size as i32);
-        let len = Uint8Array::byte_length(&chunk);
 
         let mut index = 0;
-        while index < len {
+        while index < read_size {
                 out[index as usize] = Uint8Array::get_index(&chunk, index as u32);
                 index += 1;
         }
