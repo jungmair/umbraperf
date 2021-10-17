@@ -3,10 +3,11 @@ use std::io::Result;
 use std::io::{Read, Seek, SeekFrom};
 
 use crate::bindings;
+use crate::utils::print_to_cons::print_to_js_with_obj;
 
 pub struct WebFileReader {
-    offset: u64,
-    length: u64,
+    pub offset: u64,
+    pub length: u64,
 }
 
 impl WebFileReader {
@@ -41,6 +42,8 @@ impl Read for WebFileReader {
         if read_size == 0 {
             return Ok(read_size as usize);
         }
+
+        print_to_js_with_obj(&format!("{:?} {:?} {:?}", "read()", "readsize", read_size).into());
 
         let chunk = bindings::read_file_chunk(self.offset as i32, read_size as i32);
         let len = Uint8Array::byte_length(&chunk);
