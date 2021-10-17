@@ -1,3 +1,6 @@
+use std::io::BufRead;
+use std::io::BufReader;
+
 use crate::web_file::streambuf::WebFileReader;
 use parquet::file::reader::ChunkReader;
 use parquet::file::reader::Length;
@@ -18,14 +21,15 @@ impl WebFileChunkReader {
 }
 
 impl ChunkReader for WebFileChunkReader {
-    type T = WebFileReader;
+    type T = BufReader<WebFileReader>;
 
-    fn get_read(&self, start: u64, length: usize) -> Result<WebFileReader> {
+    fn get_read(&self, start: u64, length: usize) -> Result<BufReader<WebFileReader>> {
         if start + length as u64 > self.length {
             return Err(ParquetError::EOF("End of file".to_string()));
         }
-        let reader = WebFileReader::new_from_file(start, self.length as i32);
-        Ok(reader)
+
+        let buf_read = BufReader::with_capacity( 16 * 1024, WebFileReader::new_from_file(start, self.length as i32));
+        Ok(buf_read)
     }
 }
 
