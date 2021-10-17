@@ -17,9 +17,9 @@ use arrow::{
 
 // Stream Buff
 mod web_file {
-    pub mod streambuf;
+    pub mod webfile_reader;
     pub mod webfile_chunk_reader;
-    pub mod cachereader;
+    pub mod cache_reader;
 }
 
 // Analyze

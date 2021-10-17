@@ -5,7 +5,7 @@ use parquet::{arrow::{ArrowReader, ParquetFileArrowReader}, file::{reader::FileR
 use crate::{
     bindings::notify_js_query_result,
     utils::print_to_cons::print_to_js_with_obj,
-    web_file::{streambuf::WebFileReader, webfile_chunk_reader::WebFileChunkReader},
+    web_file::{webfile_reader::WebFileReader, webfile_chunk_reader::WebFileChunkReader},
 };
 use arrow::{array::{Array, ArrayRef}, csv::Reader, datatypes::{DataType, Field, Schema, SchemaRef}, record_batch::RecordBatch};
 
