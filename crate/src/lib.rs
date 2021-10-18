@@ -103,10 +103,7 @@ pub fn analyze_file(file_size: i32) {
     clear_cache();
 
     let batches = record_batch_util::init_record_batches(
-        file_size,
-        59, // Code for semicolon
-        true,
-        vec![0, 5, 13, 20],
+        file_size
     );
 
     let elapsed = now.elapsed();

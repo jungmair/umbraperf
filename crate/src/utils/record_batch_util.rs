@@ -1,11 +1,10 @@
 use std::{io::Cursor, sync::Arc};
 
-use parquet::{arrow::{ArrowReader, ParquetFileArrowReader}, file::{reader::FileReader, serialized_reader::SerializedFileReader}};
+use parquet::{arrow::{ArrowReader, ParquetFileArrowReader}, file::{serialized_reader::SerializedFileReader}};
 
 use crate::{
     bindings::notify_js_query_result,
-    utils::print_to_cons::print_to_js_with_obj,
-    web_file::{webfile_reader::WebFileReader, webfile_chunk_reader::WebFileChunkReader},
+    web_file::{webfile_chunk_reader::WebFileChunkReader},
 };
 use arrow::{array::{Array, ArrayRef}, csv::Reader, datatypes::{DataType, Field, Schema, SchemaRef}, record_batch::RecordBatch};
 
@@ -72,12 +71,8 @@ fn init_schema() -> Schema {
 
 // Init record batch of JavaScript
 pub fn init_record_batches(
-    file_size: i32,
-    with_delimiter: u8,
-    with_header: bool,
-    with_projection: Vec<usize>,
+    file_size: i32
 ) -> Vec<RecordBatch> {
-    let schema = init_schema();
 
     let chunk_reader = WebFileChunkReader::new(file_size);
 

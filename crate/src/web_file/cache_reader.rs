@@ -7,8 +7,8 @@ use crate::web_file::webfile_reader::WebFileReader;
 
 #[derive(Debug, Clone)]
 pub struct Entry {
-    file_offset: u64,
-    buffer: Vec<u8>
+    pub file_offset: u64,
+    pub buffer: Vec<u8>
 }
 
 pub struct CacheReader {
@@ -19,11 +19,11 @@ pub struct CacheReader {
 
 impl CacheReader {
 
-    pub fn init_reader(offset: u64, read_size: usize, file_size: i32) -> Self {
+    pub fn init_reader(offset: u64, read_size: usize, buffer: Vec<Entry>) -> Self {
         Self {
             offset,
             read_size: read_size,
-            buffer: Vec::new(),
+            buffer: buffer,
         }
     }
 
