@@ -75,7 +75,6 @@ impl Read for CacheReader {
         }
 
 
-        // read always more
         let mut out_buf = vec![0; 1024*8];
 
         let mut webfile_reader = WebFileReader::init_reader(requested_offset as u64);
