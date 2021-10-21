@@ -3,6 +3,7 @@ extern crate wasm_bindgen;
 use parquet::file::serialized_reader::SerializedFileReader;
 use utils::print_to_cons::print_to_js_with_obj;
 use wasm_bindgen::prelude::*;
+use web_file::streambuf::WebFileReader;
 
 // Aux
 extern crate console_error_panic_hook;
@@ -50,13 +51,15 @@ use crate::utils::bindings::notify_js_finished_reading;
 //STATE
 pub struct State {
     pub record_batches: Option<RecordBatch>,
-    pub queries: HashMap<String, RecordBatch>
+    pub queries: HashMap<String, RecordBatch>,
+    pub web_file_reader: WebFileReader
 }
 
 thread_local! {
     static STATE: RefCell<State> = RefCell::new(State {
         record_batches: None,
-        queries: HashMap::new()
+        queries: HashMap::new(),
+        web_file_reader: WebFileReader::new_from_file(0, 0, 0)
     });
 }
 
@@ -81,6 +84,14 @@ fn get_record_batches() -> Option<RecordBatch> {
 
 fn get_query_from_cache() -> HashMap<String, RecordBatch> {
     with_state(|s| s.queries.clone())
+}
+
+fn get_webfile_reader() -> WebFileReader {
+    with_state(|s| s.web_file_reader.clone())
+}
+
+fn set_webfile_reader(reader: WebFileReader) {
+    _with_state_mut(|s| s.web_file_reader = reader);
 }
 
 fn clear_cache() {

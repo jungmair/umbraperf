@@ -9,11 +9,12 @@ struct Entry {
     buffer: Vec<u8>,
 }
 
+#[derive(Clone)]
 pub struct WebFileReader {
-    start_position: u64,
-    offset: u64,
-    length: u64,
-    buffer: Vec<u8>,
+    pub start_position: u64,
+    pub offset: u64,
+    pub length: u64,
+    pub buffer: Vec<u8>,
 }
 
 impl WebFileReader {
@@ -26,44 +27,35 @@ impl WebFileReader {
         }
     }
 
-    pub fn read_into_buffer(&mut self, out: &mut [u8]) -> Result<usize> {
+    pub fn set_offset(&mut self, start_position: u64, offset: u64) {
+        self.offset = offset;
+        self.start_position = start_position;
+    }
 
+    pub fn read_into_buffer(&mut self, out: &mut [u8]) -> Result<usize> {
         let array_length = out.len() as u64;
         let read_size = array_length.min(self.length - self.offset);
         if read_size == 0 {
             return Ok(read_size as usize);
         }
 
-        print_to_js_with_obj(
-            &format!("offset:{:?} array_length:{:?} readsize:{:?}", self.offset, array_length, read_size).into(),
-        );
+        /*  print_to_js_with_obj(
+            &format!(
+                "offset:{:?} array_length:{:?} readsize:{:?}",
+                self.offset, array_length, read_size
+            )
+            .into(),
+         ); */ 
 
-        if self.buffer.len() > 0 {
+        let chunk = bindings::read_file_chunk(self.offset as i32, read_size as i32);
 
-            let range = [self.offset as usize - self.start_position as usize
-            ..self.offset as usize + read_size as usize];
-
-            print_to_js_with_obj(&format!("range:{:?}", range ).into());
-
-
-            let buffer = &self.buffer[self.offset as usize - self.start_position as usize
-                ..self.offset as usize + read_size as usize];
-            out.copy_from_slice(&buffer);
-
-            print_to_js_with_obj(&format!("out:{:?} buffer:{:?}", out, self.buffer ).into());
-
-
-        } else {
-            let chunk = bindings::read_file_chunk(self.offset as i32, read_size as i32);
-
-            let mut index = 0;
-            while index < read_size {
-                out[index as usize] = Uint8Array::get_index(&chunk, index as u32);
-                index += 1;
-            }
-
-            self.buffer = chunk.to_vec();
+        let mut index = 0;
+        while index < read_size {
+            out[index as usize] = Uint8Array::get_index(&chunk, index as u32);
+            index += 1;
         }
+
+        self.buffer = chunk.to_vec();
 
         // Update offset
         //self.offset += read_size as u64;
@@ -73,51 +65,36 @@ impl WebFileReader {
 
 // Read implementation for WebFileReader
 impl Read for WebFileReader {
-
     fn read(&mut self, out: &mut [u8]) -> Result<usize> {
-
-      
         let array_length = out.len() as u64;
         let read_size = array_length.min(self.length - self.offset);
         if read_size == 0 {
             return Ok(read_size as usize);
         }
 
-        /* print_to_js_with_obj(
-            &format!("offset:{:?} array_length:{:?} readsize:{:?}", self.offset, array_length, read_size).into(),
-        ); */
-
-        if self.buffer.len() > 0 {
-
-           /*  print_to_js_with_obj(
-                &format!("current buffer:{:?} length {:?} ", self.buffer, self.buffer.len()).into(),
-            ); */
-
-            let range = [self.offset as usize - self.start_position as usize
-            ..(self.offset as usize - self.start_position as usize) + read_size as usize];
-
-/*             print_to_js_with_obj(&format!("range:{:?}", range ).into());
+       /*   print_to_js_with_obj(
+            &format!(
+                "offset:{:?} array_length:{:?} readsize:{:?}",
+                self.offset, array_length, read_size
+            )
+            .into(),
+        ); 
  */
+       /*   print_to_js_with_obj(
+            &format!(
+                "current buffer:{:?} length {:?} ",
+                self.buffer,
+                self.buffer.len()
+            )
+            .into(),
+        );  */
 
-            let buffer = &self.buffer[self.offset as usize - self.start_position as usize
-                ..(self.offset as usize - self.start_position as usize) + read_size as usize];
-            out.copy_from_slice(&buffer);
+        let buffer =
+            &self.buffer[self.offset as usize - self.start_position as usize ..(self.offset as usize - self.start_position as usize) + read_size as usize];
+        out.copy_from_slice(&buffer);
 
-/*             print_to_js_with_obj(&format!("out:{:?} buffer:{:?}", out, self.buffer ).into());
+/*         print_to_js_with_obj(&format!("out:{:?} buffer:{:?}", out, self.buffer).into());
  */
-
-        } else {
-            let chunk = bindings::read_file_chunk(self.offset as i32, read_size as i32);
-
-            let mut index = 0;
-            while index < read_size {
-                out[index as usize] = Uint8Array::get_index(&chunk, index as u32);
-                index += 1;
-            }
-
-            self.buffer = chunk.to_vec();
-        }
-
         // Update offset
         self.offset += read_size as u64;
         Ok(read_size as usize)
