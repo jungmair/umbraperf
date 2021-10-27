@@ -42,27 +42,6 @@ impl Read for WebFileReader {
         Ok(0)
     }
 
-    fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
-        print_to_js_with_obj(&format!("requested size exakt {:?}", buf.len()).into());
-
-        let array_length = buf.len() as u64;
-
-        let chunk = bindings::read_file_chunk(self.offset as i32, buf.len() as i32);
-        let len = Uint8Array::byte_length(&chunk);
-
-        if len == array_length as u32 {
-            chunk.copy_to(buf);
-        } else {
-            let mut index = 0;
-            while index < len {
-                buf[index as usize] = Uint8Array::get_index(&chunk, index as u32);
-                index += 1;
-            }
-        }
-        self.offset += array_length as u64;
-        Ok(())
-    }
-
     fn read(&mut self, out: &mut [u8]) -> Result<usize> {
         let array_length = out.len() as u64;
         let read_size = array_length.min(self.length - self.offset);
@@ -73,19 +52,18 @@ impl Read for WebFileReader {
         print_to_js_with_obj(&format!("requested size {:?}", out.len()).into());
 
         let chunk = bindings::read_file_chunk(self.offset as i32, read_size as i32);
-        let len = Uint8Array::byte_length(&chunk);
 
-        if len == array_length as u32 {
-            chunk.copy_to(out);
-        } else {
-            let mut index = 0;
-            while index < len {
+
+        let mut index = 0;
+        while index < read_size {
                 out[index as usize] = Uint8Array::get_index(&chunk, index as u32);
                 index += 1;
-            }
-        }
+         }
+    
 
         print_to_js_with_obj(&format!("out{:?}", out).into());
+        print_to_js_with_obj(&format!("len{:?}", out.len()).into());
+
 
 
         // Update offset

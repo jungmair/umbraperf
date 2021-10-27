@@ -83,15 +83,31 @@ pub fn init_record_batches(
 
     let reader = SerializedFileReader::new(chunk_reader);
 
+    if let Err(x) = &reader {
+        print_to_js_with_obj(&format!("{:?}", x).into());
+
+    }
+
     let reader = reader.unwrap();
 
     let mut t = ParquetFileArrowReader::new(Arc::new(reader));
 
-    let mut record_reader= t.get_record_reader_by_columns(vec![0,4,12,18].into_iter(), 1024 * 8).unwrap();
+    let mut record_reader= t.get_record_reader_by_columns(vec![0,4,12,18].into_iter(), 1024 * 8);
+
+    if let Err(x) = &record_reader {
+        print_to_js_with_obj(&format!("{:?}", x).into());
+
+    } 
+
+    let mut record_reader = record_reader.unwrap();
 
     let mut vec = Vec::new();
 
     while let Some(item) = record_reader.next() {
+        if let Err(x) = &item {
+            print_to_js_with_obj(&format!("{:?}", x).into());
+    
+        }
         let batch = item.unwrap();
         vec.push(batch);
     }

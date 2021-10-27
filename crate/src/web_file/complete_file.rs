@@ -20,7 +20,7 @@ impl CompleteFile {
         unsafe {
             ARRAY.clear();
         }
-        let mut reader = WebFileReader::new_from_file(offset, offset as i32 + length as i32);
+        let mut reader = WebFileReader::new_from_file(offset, filesize);
         let mut start = 0;
         while start != length {
             let readsize = (8 * 1024).min(length - start) as usize;
