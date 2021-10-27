@@ -42,12 +42,6 @@ impl Read for WebFileReader {
         Ok(0)
     }
 
-    fn take(self, limit: u64) -> std::io::Take<Self>
-    where
-            Self: Sized, {
-        
-    }
-
     fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
         print_to_js_with_obj(&format!("requested size exakt {:?}", buf.len()).into());
 
