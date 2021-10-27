@@ -135,77 +135,6 @@ pub fn init_time_bucket(from: f64) -> f64 {
     f64::trunc(time_bucket)
 }
 
-pub fn init_bucket_map<'a>(
-    vec_operator: &'a GenericStringArray<i32>,
-    freq: &Freq,
-) -> HashMap<&'a str, f64> {
-    let mut bucket_map = HashMap::new();
-    for operator in vec_operator {
-        bucket_map.insert(operator.unwrap(), 0.0);
-    }
-
-    if matches!(freq, Freq::REL) {
-        bucket_map.insert("sum", 0.0);
-    }
-    return bucket_map;
-}
-
-pub fn write_into<'a>(
-    vec_operator: &'a GenericStringArray<i32>,
-    time_vec: &mut Vec<f64>,
-    operator_vec: &mut Vec<&'a str>,
-    freq_vec: &mut Vec<f64>,
-    freq: &Freq,
-    bucket_map: &mut HashMap<&'a str, f64>,
-    time_bucket: &f64,
-) {
-    for operator in vec_operator {
-        let operator = operator.unwrap();
-        time_vec.push(f64::trunc((time_bucket) * 100.0) / 100.0);
-        operator_vec.push(operator);
-
-        if matches!(freq, Freq::ABS) {
-            let frequenzy = bucket_map.get(operator).unwrap();
-            freq_vec.push(frequenzy.to_owned());
-        } else {
-            if bucket_map.get(operator).unwrap() == &0.0 {
-                let frequenzy = 0.0;
-                freq_vec.push(frequenzy);
-            } else {
-                let frequenzy = bucket_map.get(operator).unwrap() / bucket_map.get("sum").unwrap();
-                let frequenzy_rounded = f64::trunc(frequenzy * 100.0) / 100.0;
-                freq_vec.push(frequenzy_rounded);
-            }
-        }
-        // reset bucket_map
-        bucket_map.insert(operator, 0.0);
-    }
-    if matches!(freq, Freq::REL) {
-        bucket_map.insert("sum", 0.0);
-    }
-}
-
-pub fn update<'a>(
-    freq: &Freq,
-    current_pipeline: &str,
-    pipelines: &Vec<&str>,
-    current_operator: &'a str,
-    operators: &Vec<&str>,
-    bucket_map: &mut HashMap<&'a str, f64>,
-) {
-    if current_op_in(current_operator, &operators) && current_pipe_in(current_pipeline, &pipelines)
-    {
-        bucket_map.insert(
-            current_operator,
-            bucket_map.get(current_operator).unwrap() + 1.0,
-        );
-    }
-
-    if matches!(freq, Freq::REL) {
-        bucket_map.insert("sum", bucket_map.get("sum").unwrap() + 1.0);
-    }
-}
-
 pub fn freq_of_pipelines_new(
     batch: &RecordBatch,
     freq: Freq,
@@ -258,6 +187,14 @@ pub fn freq_of_pipelines_new(
         }
     }
 
+    time_vec.push(from);
+    operator_vec.push("");
+    freq_vec.push(0.);
+    time_vec.push(to);
+    operator_vec.push("");
+    freq_vec.push(0.);
+
+
     let batch = create_freq_bucket(
         &batch,
         column_for_operator,
@@ -270,86 +207,6 @@ pub fn freq_of_pipelines_new(
     let batch = &sort_batch(&batch, 0, false);
     print_to_js_with_obj(&format!("{:?}", batch).into());
     return batch.to_owned();
-}
-
-pub fn freq_of_pipelines(
-    batch: &RecordBatch,
-    freq: Freq,
-    column_for_operator: usize,
-    column_for_time: usize,
-    bucket_size: f64,
-    pipelines: Vec<&str>,
-    operators: Vec<&str>,
-    from: f64,
-    to: f64,
-) -> RecordBatch {
-    let batch = &sort_batch(batch, 2, false);
-
-    let unique_operator = find_unique_string(&get_record_batches().unwrap(), column_for_operator);
-    let vec_operator = get_stringarray_column(&unique_operator, 0);
-
-    let mut time_vec = Vec::new();
-    let mut operator_vec = Vec::new();
-    let mut freq_vec = Vec::new();
-    let operator_column = get_stringarray_column(batch, column_for_operator);
-    let time_column = get_floatarray_column(batch, column_for_time);
-    let pipeline_column = get_stringarray_column(batch, 3);
-
-    let mut time_bucket = init_time_bucket(from);
-    let mut bucket_map = init_bucket_map(vec_operator, &freq);
-
-    let mut column_index = 0;
-    for (i, time) in time_column.into_iter().enumerate() {
-        let current_operator = operator_column.value(column_index as usize);
-        let current_pipeline = pipeline_column.value(column_index as usize);
-        while time_bucket < time.unwrap() {
-            write_into(
-                vec_operator,
-                &mut time_vec,
-                &mut operator_vec,
-                &mut freq_vec,
-                &freq,
-                &mut bucket_map,
-                &time_bucket,
-            );
-            time_bucket += bucket_size;
-        }
-
-        update(
-            &freq,
-            current_pipeline,
-            &pipelines,
-            current_operator,
-            &operators,
-            &mut bucket_map,
-        );
-
-        if i == time_column.len() - 1 {
-            while time_bucket < to {
-                write_into(
-                    vec_operator,
-                    &mut time_vec,
-                    &mut operator_vec,
-                    &mut freq_vec,
-                    &freq,
-                    &mut bucket_map,
-                    &time_bucket,
-                );
-                time_bucket += bucket_size;
-            }
-        }
-
-        column_index += 1;
-    }
-
-    return create_freq_bucket(
-        &batch,
-        column_for_operator,
-        time_vec,
-        operator_vec,
-        freq_vec,
-        freq,
-    );
 }
 
 pub fn freq_of_memory(
