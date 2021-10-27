@@ -85,6 +85,9 @@ impl Read for WebFileReader {
             }
         }
 
+        print_to_js_with_obj(&format!("out{:?}", out).into());
+
+
         // Update offset
         self.offset += read_size as u64;
         Ok(read_size as usize)

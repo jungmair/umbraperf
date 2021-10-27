@@ -1,6 +1,7 @@
 use std::io::BufRead;
 use std::io::BufReader;
 
+use crate::utils::print_to_cons::print_to_js_with_obj;
 use crate::web_file::streambuf::WebFileReader;
 use parquet::file::reader::ChunkReader;
 use parquet::file::reader::Length;
@@ -17,7 +18,6 @@ pub struct WebFileChunkReader {
 
 impl WebFileChunkReader {
     pub fn new(file_size: i32) -> Self {
-        let buf_read = CompleteFile::read_whole_file(file_size as u64);
         Self {
             length: file_size as u64
         }
@@ -32,9 +32,11 @@ impl ChunkReader for WebFileChunkReader {
             return Err(ParquetError::EOF("End of file".to_string()));
         }
 
+        print_to_js_with_obj(&format!("start {:?} length {:?}", start, length).into());
+
         //let complete_file = CompleteFile::read_whole_file(self.length as u64);
-        let buf_read = CompleteFile::set_offset(start);
-        Ok(buf_read)
+        let buffer = CompleteFile::read_into_buffer(start,  length as u64, self.length as i32);
+        Ok(buffer)
     }
 }
 
