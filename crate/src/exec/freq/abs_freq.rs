@@ -114,7 +114,7 @@ pub fn abs_freq_of_pipelines(
     to: f64,
 ) -> RecordBatch {
 
-    freq::freq_of_pipelines(batch, freq::Freq::ABS, column_for_operator, column_for_time, bucket_size, pipelines, operators, from, to)
+    freq::freq_of_pipelines_new(batch, freq::Freq::ABS, column_for_operator, column_for_time, bucket_size, pipelines, operators, from, to)
 }
 
 pub fn abs_freq_with_pipelines_with_double_events(

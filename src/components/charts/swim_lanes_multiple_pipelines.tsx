@@ -270,7 +270,7 @@ class SwimLanesMultiplePipelines extends React.Component<Props, State> {
             scales: [
                 {
                     name: "x",
-                    type: "point",
+                    type: "linear",
                     range: "width",
                     domain: {
                         data: "table",

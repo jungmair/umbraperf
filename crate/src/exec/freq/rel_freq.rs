@@ -14,7 +14,7 @@ pub fn rel_freq_with_pipelines(
     to: f64,
 ) -> RecordBatch {
 
-    freq::freq_of_pipelines(batch, freq::Freq::REL, column_for_operator, column_for_time, bucket_size, pipelines, operators, from, to)
+    freq::freq_of_pipelines_new(batch, freq::Freq::REL, column_for_operator, column_for_time, bucket_size, pipelines, operators, from, to)
 
 }
 
