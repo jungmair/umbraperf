@@ -19,6 +19,7 @@ use arrow::{
 mod web_file {
     pub mod streambuf;
     pub mod webfile_chunk_reader;
+    pub mod complete_file;
 }
 
 // Analyze
