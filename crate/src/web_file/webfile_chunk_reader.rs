@@ -32,10 +32,10 @@ impl ChunkReader for WebFileChunkReader {
             return Err(ParquetError::EOF("End of file".to_string()));
         }
 
-        print_to_js_with_obj(&format!("start {:?} length {:?}", start, length).into());
-
+/*         print_to_js_with_obj(&format!("start {:?} length {:?}", start, length).into());
+ */
         //let complete_file = CompleteFile::read_whole_file(self.length as u64);
-        let buffer = CompleteFile::read_into_buffer(start,  length as u64, self.length as i32);
+        let buffer = CompleteFile::read_into_buffer(CompleteFile::new(), start,  length as u64, self.length as i32);
         Ok(buffer)
     }
 }
